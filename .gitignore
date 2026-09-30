@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+# Point clouds and downloads stay out of git; RESULTS.md carries the numbers.
+data/

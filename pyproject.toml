@@ -1,0 +1,31 @@
+[project]
+name = "roofrecon"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Oluwatifunmilayo Ude", email = "funmichimdi@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "laspy[lazrs]>=2.5",
+    "matplotlib>=3.8",
+    "numpy>=1.26",
+    "open3d>=0.19",
+    "pyproj>=3.6",
+    "scipy>=1.11",
+    "shapely>=2.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]
