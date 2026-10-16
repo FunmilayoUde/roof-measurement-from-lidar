@@ -55,6 +55,40 @@ def fetch_osm_building(lat: float, lon: float, out_path: str | Path) -> dict:
     return feature
 
 
+BAG_WFS_URL = "https://service.pdok.nl/lv/bag/wfs/v2_0"
+
+
+def fetch_bag_building(bag_id: str, out_path: str | Path) -> dict:
+    """Fetch a Dutch BAG 'pand' by its 16-digit id and save it as GeoJSON in EPSG:28992.
+
+    BAG is the authoritative registry that OSM's Dutch buildings are imported from, and
+    it comes back already in the AHN coordinate system, so no reprojection is needed.
+    Like OSM, the outline is the walls at ground level, not the roof edge.
+    """
+    params = {
+        "service": "WFS",
+        "version": "2.0.0",
+        "request": "GetFeature",
+        "typeNames": "bag:pand",
+        "outputFormat": "application/json",
+        "srsName": "EPSG:28992",
+        "FILTER": (
+            '<Filter xmlns="http://www.opengis.net/fes/2.0"><PropertyIsEqualTo>'
+            f"<ValueReference>identificatie</ValueReference><Literal>{bag_id}</Literal>"
+            "</PropertyIsEqualTo></Filter>"
+        ),
+    }
+    url = f"{BAG_WFS_URL}?{urllib.parse.urlencode(params)}"
+    with urllib.request.urlopen(url, timeout=60) as resp:
+        payload = json.load(resp)
+    if not payload.get("features"):
+        raise ValueError(f"No BAG pand with id {bag_id}")
+    feature = payload["features"][0]
+    Path(out_path).parent.mkdir(parents=True, exist_ok=True)
+    Path(out_path).write_text(json.dumps(feature, indent=2))
+    return feature
+
+
 def load_footprint(path: str | Path, src_crs: str = "EPSG:4326", dst_crs: str | None = None) -> Polygon:
     """Load a single-polygon GeoJSON Feature and reproject it (x, y order) into dst_crs."""
     feature = json.loads(Path(path).read_text())

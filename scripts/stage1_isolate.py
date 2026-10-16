@@ -1,7 +1,9 @@
 """Stage 1: isolate one house's roof points from a LAZ tile.
 
     uv run python scripts/stage1_isolate.py --laz data/raw/<tile>.LAZ \
-        --lat 52.0 --lon 4.36 --house-id delft_01
+        --lat 52.0 --lon 4.36 --house-id delft_01      # OSM footprint
+    uv run python scripts/stage1_isolate.py --laz data/raw/<tile>.LAZ \
+        --bag-id <bag-id> --house-id delft_01  # Dutch BAG footprint
 
 Writes data/interim/<house-id>/{footprint.geojson, roof.ply, stats.json, preview.png}
 and prints the row to paste into RESULTS.md.
@@ -15,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-from roofrecon.footprint import fetch_osm_building, load_footprint
+from roofrecon.footprint import fetch_bag_building, fetch_osm_building, load_footprint
 from roofrecon.isolate import (
     ASPRS_CLASSES,
     buffer_sweep,
@@ -36,6 +38,7 @@ def main() -> None:
     ap.add_argument("--house-id", required=True)
     ap.add_argument("--footprint", type=Path, help="GeoJSON Feature; fetched from OSM if absent and --lat/--lon given")
     ap.add_argument("--footprint-crs", default="EPSG:4326")
+    ap.add_argument("--bag-id", help="Dutch BAG pand id; footprint fetched from PDOK in EPSG:28992")
     ap.add_argument("--lat", type=float)
     ap.add_argument("--lon", type=float)
     ap.add_argument("--crs", help="Tile CRS if the LAZ header lacks one, e.g. EPSG:28992 (AHN) or a UTM zone")
@@ -53,10 +56,15 @@ def main() -> None:
         raise SystemExit("LAZ header has no CRS; pass --crs (AHN is EPSG:28992)")
 
     fp_path = args.footprint or out / "footprint.geojson"
+    if args.bag_id:
+        args.footprint_crs = "EPSG:28992"
     if not fp_path.exists():
-        if args.lat is None or args.lon is None:
-            raise SystemExit("Need --footprint or --lat/--lon")
-        fetch_osm_building(args.lat, args.lon, fp_path)
+        if args.bag_id:
+            fetch_bag_building(args.bag_id, fp_path)
+        elif args.lat is not None and args.lon is not None:
+            fetch_osm_building(args.lat, args.lon, fp_path)
+        else:
+            raise SystemExit("Need --footprint, --bag-id, or --lat/--lon")
     footprint = load_footprint(fp_path, src_crs=args.footprint_crs, dst_crs=tile_crs)
 
     # Read a generous box so the sweep can see past the eaves.
