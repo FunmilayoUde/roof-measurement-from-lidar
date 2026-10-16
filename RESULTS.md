@@ -17,7 +17,7 @@ delft_01: BAG <bag-id> (Delft, built (decade withheld)), AHN5 2023, GeoTiles sub
   Points stop by 0.5 m, so the eave overhang is ≤ 0.5 m; 1.0 m sits on the plateau, and
   neither shed (3.7 m, 7.2 m away) is building-class.
 - 6.5% of the house's building points (399 / 6148) lie outside the walls, in the eaves.
-- 462 of the 539 non-building points inside the walls are within 0.5 m of the wall line
+- 463 of the 539 non-building points inside the walls are within 0.5 m of the wall line
   (facade and ground at the foot of the wall). Of the 76 interior ones, 19 are above the
   ridge: an unclassified chimney, which also leaves a hole in the building-class roof.
 - 17 building-class points are below z = 1.5 m along the north wall (ground or wall labelled
