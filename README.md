@@ -63,8 +63,8 @@ won't ask for a global shift.
   vegetation, and buildings. We trust it for now and measure how much it gets wrong:
   the class histogram inside the walls shows what *isn't* labelled building, and
   anything there caps stage-2 coverage.
-- **Buffer beyond the footprint.** OSM and BAG footprints trace the *walls*, and the
-  roof overhangs them by the eave depth (often 0.3 to 0.6 m). Crop at the walls and
+- **Buffer beyond the footprint.** On every house so far the roof extends past the BAG
+  outline, by 0.25–0.75 m (RESULTS.md), so treat the outline as roughly the walls. Crop at the walls and
   you cut the eaves off, which biases area low and moves the eave edges inward. The
   buffer sweep counts building points as the crop grows. The count should rise up to
   the eave, stay flat, then rise again at the next building. Pick a buffer on the
