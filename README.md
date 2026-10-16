@@ -75,7 +75,9 @@ won't ask for a global shift.
   consumers and GPUs) resolves about 3 cm at y ≈ 450 000 m, and about 50 cm at a UTM
   northing of 4.5 million m. Subtracting a whole-metre offset brings that to
   sub-micron. The offset goes in `stats.json` so results can be mapped back.
-- **Density, measured in plan view.** `nominal` = points / crop area. `local` =
-  median neighbour count within 1 m / π. Nearest-neighbour spacing is reported on
+- **Density, measured in plan view, on building points inside the walls.** The roof
+  covers that whole region, so the area isn't diluted by the empty part of the buffer
+  (dividing by the buffered area gave 25.1 instead of 33.5 on delft_01). `nominal` =
+  points / footprint area. `local` = median neighbour count within 1 m / π. Nearest-neighbour spacing is reported on
   its own because converting it to density needs an assumption about the sampling
   pattern.

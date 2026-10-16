@@ -8,6 +8,7 @@ from roofrecon.isolate import (
     classification_histogram,
     crop_mask,
     density_stats,
+    non_building_inside_walls,
     recenter,
 )
 
@@ -77,3 +78,18 @@ def test_nn_spacing_on_a_grid():
     d = density_stats(g, 100.0)
     assert d["median_nn_spacing_m"] == pytest.approx(0.25)
     assert d["duplicate_xy_fraction"] == 0.0
+
+
+def test_non_building_split_wall_band_from_interior():
+    fp = box(0, 0, 10, 8)
+    xy = np.array([
+        [0.2, 4.0],   # facade hit just inside the wall line
+        [9.9, 1.0],   # ditto
+        [5.0, 4.0],   # chimney, mid-roof
+        [5.0, 4.0],   # building point, ignored
+        [12.0, 4.0],  # outside, ignored
+    ])
+    cls = np.array([1, 1, 1, 6, 1], dtype=np.uint8)
+    r = non_building_inside_walls(xy, cls, fp, wall_band_m=0.5)
+    assert (r["total"], r["interior"]) == (3, 1)
+    assert r["mask_interior"].tolist() == [False, False, True, False, False]

@@ -24,6 +24,7 @@ from roofrecon.isolate import (
     classification_histogram,
     crop_mask,
     density_stats,
+    non_building_inside_walls,
     recenter,
 )
 from roofrecon.las_io import header_summary, read_points
@@ -74,10 +75,11 @@ def main() -> None:
         raise SystemExit("No points in the footprint's bbox: wrong tile or wrong CRS?")
     xy = pts.xyz[:, :2]
 
-    # What the classifier says lives inside the walls. Non-building points here are either
-    # genuine (trees overhanging the roof) or misclassified roof, which later caps coverage.
+    # What the classifier says lives inside the walls. Non-building points at the wall line
+    # are facade/ground hits; interior ones are unlabelled roof objects or trees.
     inside_walls = crop_mask(xy, footprint, 0.0)
     hist_inside = classification_histogram(pts.classification[inside_walls])
+    nonb = non_building_inside_walls(xy, pts.classification, footprint)
 
     keep_classes = [int(c) for c in args.classes.split(",")]
     building = pts.subset(np.isin(pts.classification, keep_classes))
@@ -86,7 +88,9 @@ def main() -> None:
     roof = building.subset(crop_mask(building.xyz[:, :2], footprint, args.buffer))
     local, offset = recenter(roof.xyz)
 
-    crop_region = footprint.buffer(args.buffer, join_style="mitre")
+    # Density inside the walls: a region the roof fully covers, so the area is not diluted by
+    # empty buffer. Eaves outside the walls are left out of the estimate, not the output.
+    in_walls_local = local[crop_mask(roof.xyz[:, :2], footprint, 0.0)]
     stats = {
         "house_id": args.house_id,
         "tile": header,
@@ -99,8 +103,10 @@ def main() -> None:
         "class_histogram_inside_walls": {f"{k} {ASPRS_CLASSES.get(k, '?')}": v for k, v in hist_inside.items()},
         "buffer_sweep": sweep,
         "roof_points": len(roof),
+        "non_building_inside_walls": {k: v for k, v in nonb.items() if k != "mask_interior"},
+        "non_building_interior_xyz_local": (pts.xyz[nonb["mask_interior"]] - offset).round(3).tolist(),
         "z_range_m": [float(local[:, 2].min()), float(local[:, 2].max())],
-        "density_crop_region": density_stats(local[:, :2], crop_region.area),
+        "density_inside_walls": density_stats(in_walls_local[:, :2], footprint.area),
     }
     (out / "stats.json").write_text(json.dumps(stats, indent=2))
     write_ply(local, out / "roof.ply")
@@ -111,9 +117,9 @@ def main() -> None:
         title=f"{args.house_id}: {len(roof)} pts, buffer {args.buffer} m",
     )
 
-    d = stats["density_crop_region"]
-    frac_building = hist_inside.get(6, 0) / max(sum(hist_inside.values()), 1)
+    d = stats["density_inside_walls"]
     print("\nclass histogram inside walls:", stats["class_histogram_inside_walls"])
+    print(f"non-building inside walls: {nonb['total']} total, {nonb['interior']} more than {nonb['wall_band_m']} m from the walls")
     print("buffer sweep (building points):")
     for r in sweep:
         print(f"  {r['buffer_m']:>5.2f} m  {r['points']:>7d}  (+{r['added'] if r['added'] is not None else '-'})")
@@ -121,7 +127,7 @@ def main() -> None:
     print(
         f"| {args.house_id} | {footprint.area:.1f} | {args.buffer} | {len(roof)} | "
         f"{d['nominal_pts_per_m2']:.1f} | {d['local_pts_per_m2']:.1f} | {d['median_nn_spacing_m']:.3f} | "
-        f"{frac_building:.3f} |"
+        f"{nonb['total']} / {nonb['interior']} |"
     )
 
 

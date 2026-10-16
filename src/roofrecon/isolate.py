@@ -34,6 +34,28 @@ def in_polygon(xy: np.ndarray, polygon: Polygon) -> np.ndarray:
     return shapely.intersects_xy(polygon, xy[:, 0], xy[:, 1])
 
 
+def distance_to_outline(xy: np.ndarray, polygon: Polygon) -> np.ndarray:
+    """Plan distance from each point to the polygon's boundary (walls)."""
+    return shapely.distance(polygon.exterior, shapely.points(xy))
+
+
+def non_building_inside_walls(
+    xy: np.ndarray, classification: np.ndarray, footprint: Polygon, wall_band_m: float = 0.5, building_class: int = 6
+) -> dict:
+    """Non-building points inside the walls, split by distance from the wall line.
+
+    Near the walls they are mostly facade hits and ground at the foot of the wall: the
+    footprint and the scan disagree by decimetres, and a vertical wall shows up in a
+    band rather than on a line. Further in they are things on the roof that the
+    classifier did not call building: chimneys, antennas, overhanging trees.
+    """
+    inside = in_polygon(xy, footprint)
+    other = inside & (classification != building_class)
+    interior = other.copy()
+    interior[other] = distance_to_outline(xy[other], footprint) > wall_band_m
+    return {"total": int(other.sum()), "interior": int(interior.sum()), "wall_band_m": wall_band_m, "mask_interior": interior}
+
+
 def crop_mask(xy: np.ndarray, footprint: Polygon, buffer_m: float) -> np.ndarray:
     """Points inside the footprint grown outward by buffer_m.
 
