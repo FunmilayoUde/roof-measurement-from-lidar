@@ -5,7 +5,7 @@
 A candidate is a residential BAG building with one dwelling, a house-sized footprint,
 no other building within --min-gap metres, and completely inside the tile. The gap is
 measured between wall outlines, so it has to exceed two eave overhangs for the roofs
-not to touch. Writes data/interim/candidates_<tile>.csv, nearest-first by gap.
+not to touch. Writes data/interim/candidates_<tile>.csv, most isolated (largest gap) first.
 """
 
 from __future__ import annotations
