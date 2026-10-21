@@ -139,3 +139,17 @@ Region growing's 4 wrong counts (of 120 runs):
 - hip 15° at 0.10 and 0.20 m, the same seed: one extra 51-point plane at 2.5° on top of the
   ridge, where the blend of two opposite 15° slopes is nearly flat.
 The extra planes are ≈ 1–1.5 m², just above min_points (30); real houses should set that.
+
+### Real houses: expected planes (written before running stage 2)
+
+Read off the stage-1 previews (plan + two elevations) only. A range where the preview is ambiguous.
+
+| house | expected planes | reasoning |
+|---|---|---|
+| delft_01 | 6 (6–7) | main block: hip with a flat top = 4 slopes + 1 flat; flat annex at 2.8 m = 1. Unsure about the link between annex and main block. |
+| delft_02 | 2 | two flat levels, 6.4 m and 3.4 m. Pitch should be ~0° on both. |
+| delft_03 | 4 (3–5) | gable = 2; low flat extension at ~3.7 m = 1; small lean-to on one end = 1, but it is small and may fall under min_points. |
+| delft_05 | 4 (4–6) | hip; the plan has notched corners and two high spots, so possibly a split ridge with extra facets. |
+
+Not expected as planes: chimneys (mostly unlabelled), the 17 low building-class points on delft_01.
+Any plane steeper than ~75° is a wall, not a roof facet.
