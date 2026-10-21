@@ -390,3 +390,44 @@ footprint) / density). Means weighted by plan area.
   228.7). Fallback facets are now trimmed where they overlap a closed facet within 0.5 m in height;
   report 227.8 m². Remaining plan overlap (2.0–3.0 m² on delft_01/02/03) is a higher roof's edge over
   a lower roof: real, and kept.
+
+### Synthetic checks: dormer
+
+Roof: `tests/synthetic_roofs.dormer` (main gable 12 × 9 m at 40°, gable dormer 3 m wide on the south
+slope, same pitch; dormer facets 3.82 m² each). 20 seeds, full pipeline (`build_roof` + report).
+Facet area error = report area / true area − 1, median [min, max].
+
+| version | planes found (of 4) | fallback facets | roof area | main south | dormer W | dormer E | valleys m (truth 4.93) | double-counted plan m² (median) |
+|---|---|---|---|---|---|---|---|---|
+| before | 4 in 19 runs, 3 in 1 | 8 | +5.7% | +12.0% | +17.3% [−40.5, +31.2] | +20.7% [−30.1, +32.5] | 6.46 | 6.3 |
+| + facet holes | same | 8 | +0.8% | +0.6% | +17.3% | +20.7% | 6.46 | 1.5 |
+| + edge sides must lie near the edge line | same | 8 | +0.6% | +0.6% | +4.5% [−40.5, +31.2] | +21.9% [−33.2, +32.5] | 6.28 | 1.3 |
+
+Kept: both changes (all tests pass; gable/hip/cross-gable results unchanged).
+- Holes: interior gaps of a facet's traced outline larger than 1 m² are subtracted. Without them the
+  main slope's polygon covered the dormer.
+- Beside a dormer's eave the main slope is just below, across the dormer's side wall, so the eave's
+  outline "touched" the main slope and was taken for the valley; the valley line then ran past the
+  eave corner. Outline points now count as on an internal edge only if they also lie within 0.3 m
+  of its line.
+- The run where RANSAC found 3 planes missed a dormer facet; its points joined the main slope, so
+  there was no hole (main south +11.8%). A segmentation failure.
+
+Tried and backed out (each improved the dormer and broke something else):
+- Keeping short level/up-slope outer sides (≥ 0.3 m) instead of dropping all sides under 0.8 m:
+  dormer W +0.3%, E still +20.7%, and a 0.78 m corner sliver on a hip became a "rake" (2 tests
+  failed). Lengths of real short sides (dormer, 0.7–2.1 m) and of artefacts (plain roofs, up to
+  2.35 m) overlap, so no length threshold separates them.
+- Alpha radius sweep 0.35–0.75 m: dormer facet |error| median 22.5–25.9% at every value. Not the cause.
+- A second candidate polygon per facet, the intersection of half-planes (its internal lines plus
+  level/up-slope lines at the points' extremes), chosen against the run-based polygon by IoU with the
+  traced outline: dormer facets −5.2% / −2.1% median, but fallbacks 8 → 13, valleys 4.93 → 2.62 m,
+  a −6% hip facet, 4 tests failed. Likely flaw: the traced outline has rounded corners, so IoU against
+  it favours polygons with clipped corners.
+
+Open: dormer facets (≈ 4 m², sides 1.2–2 m) are not measured reliably: dormer E +21.9% median,
+spread −33% to +32%, 8 of 40 fall back. This matters for Bilthoven, where dormers are common.
+
+Real houses after these changes: delft_01 224.2 m² (was 227.8; the flat top now has holes where the
+curved parts are), delft_02 93.5, delft_03 164.4, delft_05 92.9. Against footprint estimate D: +4.3%,
++0.9%, +0.4%, +3.0%.

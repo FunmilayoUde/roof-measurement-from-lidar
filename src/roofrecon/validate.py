@@ -51,11 +51,18 @@ def footprint_estimates(footprint: Polygon, facets: list[dict], overhang_m: floa
     }
 
 
+def facet_plan_shape(f: dict):
+    """A report facet seen from above, holes removed."""
+    outer = shapely.make_valid(Polygon(np.asarray(f["vertices_local_m"])[:, :2]))
+    holes = [shapely.make_valid(Polygon(np.asarray(h)[:, :2])) for h in f.get("holes_local_m", [])]
+    return outer.difference(shapely.union_all(holes)) if holes else outer
+
+
 def plan_overlap(facets: list[dict]) -> dict:
     """Double counting: the sum of facet plan areas minus the area of their union. Facets of
     one roof can't legitimately overlap in plan, except where a higher roof overhangs a lower
     one, so anything above that is area counted twice."""
-    polys = [shapely.make_valid(Polygon(np.asarray(f["vertices_local_m"])[:, :2])) for f in facets]
+    polys = [facet_plan_shape(f) for f in facets]
     total = sum(p.area for p in polys)
     union = shapely.union_all(polys).area
     pairs = []
@@ -64,7 +71,10 @@ def plan_overlap(facets: list[dict]) -> dict:
             a = polys[i].intersection(polys[j]).area
             if a > 0.5:
                 pairs.append({"facets": [facets[i]["id"], facets[j]["id"]], "overlap_m2": round(a, 1)})
-    return {"plan_sum_m2": round(total, 1), "plan_union_m2": round(union, 1), "double_counted_m2": round(total - union, 1),
+    # Area the report already declined to count twice (trimmed fallback overlaps), in plan.
+    trimmed = sum((f.get("area_not_counted_m2") or 0.0) * np.cos(np.radians(f["pitch_deg"])) for f in facets)
+    return {"plan_sum_m2": round(total, 1), "plan_union_m2": round(union, 1),
+            "already_trimmed_m2": round(trimmed, 1), "double_counted_m2": round(total - union - trimmed, 1),
             "overlapping_pairs": sorted(pairs, key=lambda p: -p["overlap_m2"])}
 
 
@@ -92,7 +102,7 @@ def _match_facet(p0, p1, facets: list[dict]):
     for f in facets:
         if f["area_m2"] <= 0:
             continue
-        poly = shapely.make_valid(Polygon(np.asarray(f["vertices_local_m"])[:, :2]))
+        poly = facet_plan_shape(f)
         scored.append((0.0 if poly.contains(pt) else poly.distance(pt), f))
     return min(scored, key=lambda s: s[0])[1] if scored else None
 

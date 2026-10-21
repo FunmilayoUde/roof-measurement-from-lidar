@@ -92,15 +92,13 @@ def trim_fallback_overlaps(model: RoofModel, max_dz: float = 0.5) -> dict[int, f
     the lower roof really does continue underneath.
     Returns {facet: true (sloped) area to subtract}.
     """
-    from shapely.geometry import Polygon
-
     trims = {}
     good = [P for P in model.polygons if not P.fallback]
     for F in (P for P in model.polygons if P.fallback):
-        f_plan = Polygon(F.vertices[:, :2]).buffer(0)
+        f_plan = F.plan_shape()
         overlap = 0.0
         for G in good:
-            inter = f_plan.intersection(Polygon(G.vertices[:, :2]).buffer(0))
+            inter = f_plan.intersection(G.plan_shape())
             if inter.area < 1e-6:
                 continue
             cx, cy = inter.centroid.x, inter.centroid.y
@@ -139,6 +137,7 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
             "outline": "traced (fallback)" if P.fallback else "plane and line intersections",
             "fallback_reason": P.fallback_reason,
             "vertices_local_m": np.round(P.vertices, 3).tolist(),
+            "holes_local_m": [np.round(h, 3).tolist() for h in P.holes],
         })
 
     edges = []

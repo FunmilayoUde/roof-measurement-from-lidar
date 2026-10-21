@@ -47,16 +47,30 @@ class FacetPolygon:
     sides: list[Side] = field(default_factory=list)
     fallback: bool = False  # True if line intersections failed and the traced outline was used
     fallback_reason: str | None = None
+    holes: list[np.ndarray] = field(default_factory=list)  # (K, 3) rings, e.g. where a dormer sits
+
+    def plane_shape(self):
+        """The facet in its own plane coordinates, holes removed (true, sloped geometry)."""
+        outer = shapely.make_valid(Polygon(to_plane_coords(self.vertices, self.plane)))
+        if not self.holes:
+            return outer
+        return outer.difference(shapely.union_all([shapely.make_valid(Polygon(to_plane_coords(h, self.plane))) for h in self.holes]))
+
+    def plan_shape(self):
+        """The facet seen from above, holes removed."""
+        outer = shapely.make_valid(Polygon(self.vertices[:, :2]))
+        if not self.holes:
+            return outer
+        return outer.difference(shapely.union_all([shapely.make_valid(Polygon(h[:, :2])) for h in self.holes]))
 
     @property
     def area(self) -> float:
-        """True (sloped) area: shoelace area in plane coordinates."""
-        uv = to_plane_coords(self.vertices, self.plane)
-        return float(Polygon(uv).area)
+        """True (sloped) area: polygon area in plane coordinates, minus holes."""
+        return float(self.plane_shape().area)
 
     @property
     def plan_area(self) -> float:
-        return float(Polygon(self.vertices[:, :2]).area)
+        return float(self.plan_shape().area)
 
 
 def _line_from_3d(point, direction, plane: Plane):
@@ -147,6 +161,8 @@ def facet_polygon(
     trim: float = 0.4,
     max_retries: int = 4,
     max_corner_dist: float = 2.0,
+    min_hole_area: float = 1.0,
+    line_tol: float = 0.3,
 ) -> FacetPolygon:
     plane = seg.planes[facet]
     pts = xyz[seg.labels == facet]
@@ -157,6 +173,11 @@ def facet_polygon(
     if outline.geom_type == "MultiPolygon":
         outline = max(outline.geoms, key=lambda g: g.area)
     ring = np.asarray(outline.exterior.coords)[:-1]
+    # Holes: areas inside the facet with none of its points, large enough not to be gaps
+    # between points (a dormer sitting on a slope; on a synthetic dormer roof the main slope
+    # read 12% large without them). Kept as traced, simplified rings.
+    holes = [_to_3d(np.asarray(shapely.simplify(Polygon(r), simplify_tol / 2).exterior.coords)[:-1], plane)
+             for r in outline.interiors if Polygon(r).area >= min_hole_area]
     simple = np.asarray(shapely.simplify(Polygon(ring), simplify_tol).exterior.coords)[:-1]
 
     # Internal lines available to this facet, keyed by the neighbouring facet.
@@ -180,6 +201,17 @@ def facet_polygon(
         dist, _ = cKDTree(xyz[seg.labels == other]).query(ring3d)
         closer = (dist < touch_radius) & (dist < best)
         near[closer], best[closer] = other, dist[closer]
+    # Touching isn't enough: beside a dormer's eave the main slope is just below, across the
+    # dormer's side wall, so the eave's outline touches the main slope and was taken for the
+    # valley, whose line then ran past the eave corner (dormer facets +17-21%, valleys 30% long
+    # on synthetic dormers). A vertex counts as on an internal edge only if it is also near
+    # that edge's line.
+    for j in np.unique(near[near >= 0]):
+        p, d = internal[j][1]
+        rel = ring[near == j] - p
+        off_line = np.abs(rel[:, 0] * d[1] - rel[:, 1] * d[0])
+        idx = np.flatnonzero(near == j)
+        near[idx[off_line > line_tol]] = -1
     near = _majority_smooth(near, window=5)
 
     # Split the ring into runs of equal label; split outer stretches further into straight
@@ -249,7 +281,7 @@ def facet_polygon(
     if reason is not None:
         verts = _to_3d(simple, plane)
         sides = [Side("other", None, verts[i], verts[(i + 1) % len(verts)]) for i in range(len(verts))]
-        return FacetPolygon(facet, plane, verts, sides, fallback=True, fallback_reason=reason)
+        return FacetPolygon(facet, plane, verts, sides, fallback=True, fallback_reason=reason, holes=holes)
 
     kinds, neighbours = [], []
     for r, line in zip(merged, lines):
@@ -263,7 +295,7 @@ def facet_polygon(
     verts = _to_3d(poly2d, plane)
     # Side i runs from corner i-1 to corner i (corner i ends run i).
     sides = [Side(kinds[i], neighbours[i], verts[i - 1], verts[i]) for i in range(len(lines))]
-    return FacetPolygon(facet, plane, verts, sides)
+    return FacetPolygon(facet, plane, verts, sides, holes=holes)
 
 
 def _close(runs: list[dict], line_of, outline, max_corner_dist: float = 2.0):
