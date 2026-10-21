@@ -133,3 +133,18 @@ def test_dormer_hole_keeps_main_slope_and_total_right(seed):
     assert main_south["holes_local_m"], "main south slope has no hole where the dormer is"
     assert main_south["area_m2"] == pytest.approx(roof.true_areas[0], rel=0.03)
     assert rep["totals"]["roof_area_m2"] == pytest.approx(sum(roof.true_areas), rel=0.03)
+
+
+def test_small_and_traced_facets_flagged_low_confidence():
+    from roofrecon.measure import area_uncertainty
+
+    assert area_uncertainty(4.0, False) == ("low", 0.315)
+    assert area_uncertainty(18.0, False) == ("normal", 0.012)
+    assert area_uncertainty(60.0, False) == ("normal", 0.007)
+    assert area_uncertainty(60.0, True)[0] == "low"  # traced outline, whatever its size
+    from synthetic_roofs import dormer
+
+    _, rep = report_for(dormer)
+    small = [f for f in rep["facets"] if f["area_m2"] < 10]
+    assert small and all(f["confidence"] == "low" for f in small)
+    assert rep["totals"]["area_in_low_confidence_facets_m2"] == pytest.approx(sum(f["area_m2"] for f in small), abs=0.2)

@@ -47,10 +47,12 @@ def main() -> None:
     plot_report_plan(rep, house / "report_plan.png")
 
     t = rep["totals"]
-    print(f"{args.house_id}: {t['facets']} facets, {t['roof_area_m2']} m² = {t['roof_area_ft2']:.0f} ft² = {t['squares']} squares")
-    print(f"  {'facet':>5} {'pitch':>12} {'facing':>6} {'area m²':>8}  outline")
+    print(f"{args.house_id}: {t['facets']} facets, {t['roof_area_m2']} ± {t['roof_area_p90_error_m2']} m² (p90) "
+          f"= {t['roof_area_ft2']:.0f} ft² = {t['squares']} squares")
+    print(f"  {'facet':>5} {'pitch':>12} {'facing':>6} {'area m²':>8} {'±p90':>6}  confidence  outline")
     for f in sorted(rep["facets"], key=lambda f: -f["area_m2"]):
-        print(f"  {f['id']:>5} {f['pitch_deg']:>5}° ({f['pitch_rise_per_12']:>4}/12) {f['facing'] or 'flat':>6} {f['area_m2']:>8}  {f['outline']}")
+        print(f"  {f['id']:>5} {f['pitch_deg']:>5}° ({f['pitch_rise_per_12']:>4}/12) {f['facing'] or 'flat':>6} {f['area_m2']:>8} "
+              f"{f['area_error_p90_pct']:>5}%  {f['confidence']:10}  {f['outline']}")
     print("  lengths: " + ", ".join(f"{k} {v} m ({t['length_ft_by_type'][k]} ft)" for k, v in t["length_m_by_type"].items()))
     for note in rep["quality"]["notes"]:
         print(f"  note: {note}")

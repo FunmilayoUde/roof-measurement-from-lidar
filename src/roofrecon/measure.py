@@ -21,6 +21,20 @@ FT2_PER_SQUARE = 100.0
 COMPASS = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
 EDGE_TYPES = ["ridge", "hip", "valley", "break", "eave", "rake", "top", "perimeter", "unclassified"]
 
+# Facet area error by size, measured on the synthetic roofs (gable, hip, cross-gable, dormer;
+# 20 seeds each; RESULTS.md, stage 5): 90th percentile of |area error|. Those roofs have no
+# facets between 3.8 and 17.1 m², so the 10 m² boundary could sit anywhere in that range.
+# Synthetic roofs are ideal (exact planes, no trees), so real errors will be at least this.
+SMALL_FACET_M2 = 10.0
+AREA_ERR_P90 = [(SMALL_FACET_M2, 0.315), (25.0, 0.012), (float("inf"), 0.007)]
+
+
+def area_uncertainty(area_m2: float, fallback: bool) -> tuple[str, float]:
+    """(confidence, 90th-percentile relative area error) for a facet of this size."""
+    p90 = next(e for limit, e in AREA_ERR_P90 if area_m2 < limit)
+    low = fallback or area_m2 < SMALL_FACET_M2
+    return ("low" if low else "normal"), (max(p90, AREA_ERR_P90[0][1]) if fallback else p90)
+
 
 def compass(az: float | None) -> str | None:
     return None if az is None else COMPASS[int(((az + 11.25) % 360) // 22.5)]
@@ -123,6 +137,7 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
         pitch = pitch_deg(P.plane.normal)
         az = azimuth_deg(P.plane.normal)
         area = P.area - trims.get(P.facet, 0.0)
+        confidence, err_p90 = area_uncertainty(area, P.fallback)
         facets.append({
             "id": P.facet,
             "points": int((model.seg.labels == P.facet).sum()),
@@ -133,6 +148,8 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
             "area_m2": round(area, 2),
             "area_ft2": round(area * M2_TO_FT2, 1),
             "area_not_counted_m2": round(trims[P.facet], 2) if P.facet in trims else None,
+            "confidence": confidence,
+            "area_error_p90_pct": round(100 * err_p90, 1),
             "plan_area_m2": round(P.plan_area, 2),
             "outline": "traced (fallback)" if P.fallback else "plane and line intersections",
             "fallback_reason": P.fallback_reason,
@@ -151,6 +168,9 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
         })
 
     area = sum(f["area_m2"] for f in facets)
+    low_area = sum(f["area_m2"] for f in facets if f["confidence"] == "low" and f["area_m2"] > 0)
+    # Conservative: facet errors added as if they all went the same way.
+    area_bound = sum(f["area_m2"] * f["area_error_p90_pct"] / 100 for f in facets)
     by_type = defaultdict(float)
     for e in edges:
         by_type[e["type"]] += e["length_m"]
@@ -159,6 +179,10 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
     if fallback:
         notes.append(f"{len(fallback)} facet(s) use a traced outline, not line intersections: their area is "
                      "approximate and their sides are unclassified.")
+    if low_area > 0:
+        notes.append(f"{low_area:.1f} m² ({100 * low_area / area:.0f}% of the roof) is in small or traced facets, whose "
+                     f"area error was up to {100 * AREA_ERR_P90[0][1]:.0f}% (90th percentile) on synthetic roofs; "
+                     "real errors will be at least that.")
     if trims:
         notes.append(f"{sum(trims.values()):.1f} m² of traced facet(s) {sorted(trims)} lies inside other facets at the "
                      "same height and is not counted twice.")
@@ -175,6 +199,8 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
             "roof_area_m2": round(area, 1),
             "roof_area_ft2": round(area * M2_TO_FT2, 0),
             "squares": round(area * M2_TO_FT2 / FT2_PER_SQUARE, 2),
+            "roof_area_p90_error_m2": round(area_bound, 1),
+            "area_in_low_confidence_facets_m2": round(low_area, 1),
             "facets": len(facets),
             "length_m_by_type": {t: round(by_type[t], 2) for t in EDGE_TYPES if t in by_type},
             "length_ft_by_type": {t: round(by_type[t] * M_TO_FT, 1) for t in EDGE_TYPES if t in by_type},

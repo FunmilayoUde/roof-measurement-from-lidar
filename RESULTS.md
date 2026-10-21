@@ -431,3 +431,28 @@ spread −33% to +32%, 8 of 40 fall back. This matters for Bilthoven, where dorm
 Real houses after these changes: delft_01 224.2 m² (was 227.8; the flat top now has holes where the
 curved parts are), delft_02 93.5, delft_03 164.4, delft_05 92.9. Against footprint estimate D: +4.3%,
 +0.9%, +0.4%, +3.0%.
+
+### Area uncertainty by facet size
+
+Source: full pipeline + report on the synthetic gable, hip, cross-gable and dormer roofs, 20 seeds
+each. |area error| by true facet area:
+
+| true facet area | facets | median | 90th percentile | max | fallbacks |
+|---|---|---|---|---|---|
+| < 10 m² | 39 | 23.0% | 31.5% | 40.5% | 8 |
+| 10–25 m² | 80 | 0.5% | 1.2% | 1.6% | 0 |
+| ≥ 25 m² | 160 | 0.2% | 0.7% | 11.8% | 0 |
+
+No synthetic facet lies between 3.8 and 17.1 m², so the 10 m² boundary is a choice within that
+range. The ≥ 25 m² maximum (11.8%) is the run where RANSAC missed a dormer facet. These are ideal
+roofs, so real errors are at least this large.
+
+The report now gives each facet a confidence (low if < 10 m² or traced) and its 90th-percentile
+error, and a conservative total bound (facet errors added as if all in the same direction):
+
+| house | roof area m² | ± p90 bound m² | in low-confidence facets m² |
+|---|---|---|---|
+| delft_01 | 224.2 | 6.0 | 14.2 (6%) |
+| delft_02 | 93.5 | 0.7 | 0 |
+| delft_03 | 164.4 | 4.1 | 9.5 (6%) |
+| delft_05 | 92.9 | 3.0 | 7.6 (8%) |
