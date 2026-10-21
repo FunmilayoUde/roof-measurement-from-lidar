@@ -53,3 +53,18 @@ Notes:
 - delft_02, 03: 12 and 18 non-building points above the roof's highest building point
   (chimneys or antennas).
 - No dormer or L-plan-with-valley house on this tile; that needs another tile.
+
+## Stage 2: plane segmentation
+
+### Synthetic checks: plane fit on known facets
+
+Source: `tests/synthetic_roofs.py` + `roofrecon.planes`, 20 seeds, 33 pts/m², 3 cm vertical noise,
+facet membership given (no segmentation yet). Area = convex hull in the plane.
+
+| roof | facets | pitch error ° (median / max abs) | area error % (median / p5 / p95) |
+|---|---|---|---|
+| gable 35° | 40 | +0.013 / 0.078 | −1.10 / −2.09 / −0.48 |
+| hip 30° | 80 | +0.010 / 0.151 | −1.52 / −3.19 / −0.64 |
+
+Area always reads low: the outermost points sit inside the true edge. The bias is larger on
+triangular hip ends (more edge per m²).
