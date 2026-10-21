@@ -4,3 +4,7 @@ __pycache__/
 .pytest_cache/
 # Point clouds and downloads stay out of git; RESULTS.md carries the numbers.
 data/
+
+# standalone write-up build and Netlify link
+site/
+.netlify/
