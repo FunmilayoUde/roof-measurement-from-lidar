@@ -362,3 +362,31 @@ cross-gable 15; totals by type within 0.3 m; roof area within 2%.
 - "unclassified" = sides of fallback facets plus outer sides neither level nor up-slope. It is
   12–14% of the edge length on the three pitched houses: the small facets are the weak spot.
 - Not yet validated against anything independent; that is stage 5.
+
+## Stage 5: validation
+
+### Footprint-based estimates
+
+Source: `scripts/stage5_validate.py`. Footprint = BAG outline (walls). All estimates use the report's
+pitches and plan-area shares, but not its areas, so they test consistency, not correctness.
+A = footprint / cos(mean pitch); B = footprint × mean of 1/cos(pitch); C = B with the footprint widened
+by the 98th-percentile overhang; D = B with footprint + overhang plan area ((points outside the
+footprint) / density). Means weighted by plan area.
+
+| house | report m² | A | B | C | D | overhang p98 / median m | overhang area m² |
+|---|---|---|---|---|---|---|---|
+| delft_01 | 227.8 | 183.0 (−19.7%) | 219.5 (−3.6%) | 240.5 (+5.6%) | 234.8 (+3.1%) | 0.23 / 0.09 | 11.9 |
+| delft_02 | 93.5 | 92.3 (−1.3%) | 92.3 (−1.3%) | 102.1 (+9.2%) | 94.3 (+0.9%) | 0.22 / 0.06 | 2.0 |
+| delft_03 | 164.6 | 136.7 (−17.0%) | 149.9 (−8.9%) | 183.3 (+11.4%) | 164.9 (+0.2%) | 0.57 / 0.17 | 12.0 |
+| delft_05 | 92.5 | 91.0 (−1.6%) | 91.0 (−1.6%) | 104.8 (+13.3%) | 95.7 (+3.5%) | 0.33 / 0.07 | 4.4 |
+
+- A vs B: 1/cos of the mean pitch understates a mixed-pitch roof (1/cos is convex). On delft_03
+  (43° gable + flat extension) sec(mean pitch) = 1.141 vs mean sec = 1.251. On single-pitch roofs A = B.
+- C overshoots by 6–13%: a uniform overhang taken from a high percentile assumes eaves all round;
+  gable ends and flat roofs barely overhang (median outside-wall distance 6–17 cm).
+- D, which counts the overhang's actual plan area, is within +0.2% to +3.5% of every report.
+- This check found a report bug: on delft_01 two traced pieces of the curved top (20.8 + 3.2 m²) lay
+  inside the flat top's polygon at the same height and were counted twice (report 251.9 m²; D said
+  228.7). Fallback facets are now trimmed where they overlap a closed facet within 0.5 m in height;
+  report 227.8 m². Remaining plan overlap (2.0–3.0 m² on delft_01/02/03) is a higher roof's edge over
+  a lower roof: real, and kept.

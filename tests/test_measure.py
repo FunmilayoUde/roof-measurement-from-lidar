@@ -78,3 +78,24 @@ def test_reconcile_small_disagreement_averages_large_keeps_overlap():
     p0, p1, gap = _endpoint_pairs(a0, a1, np.array([0.0, 0, 0]), np.array([14.0, 0, 0]))
     np.testing.assert_allclose([p0[0], p1[0]], [0.0, 10.0])
     assert gap == pytest.approx(4.0)
+
+
+def test_fallback_overlap_trimmed_only_at_same_height():
+    from roofrecon.measure import trim_fallback_overlaps
+    from roofrecon.pipeline import RoofModel
+    from roofrecon.planes import Plane
+    from roofrecon.polygons import FacetPolygon
+    from roofrecon.segment import Segmentation
+
+    def flat(facet, x0, y0, size, z, fallback):
+        v = np.array([[x0, y0, z], [x0 + size, y0, z], [x0 + size, y0 + size, z], [x0, y0 + size, z]], float)
+        return FacetPolygon(facet, Plane(np.array([0, 0, 1.0]), v.mean(axis=0), 0.0), v, [], fallback=fallback)
+
+    polys = [
+        flat(0, 0, 0, 10, 3.0, False),  # a properly closed flat roof
+        flat(1, 2, 2, 2, 3.1, True),  # traced piece inside it, same height: counted twice
+        flat(2, 6, 6, 2, 5.0, True),  # traced piece above it (a higher roof): real overlap
+    ]
+    model = RoofModel(np.zeros((0, 3)), Segmentation(np.zeros(0, int), []), [], polys, {})
+    trims = trim_fallback_overlaps(model)
+    assert trims == {1: pytest.approx(4.0)}

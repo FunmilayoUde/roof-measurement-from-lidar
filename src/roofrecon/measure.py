@@ -82,11 +82,49 @@ def reconcile_edges(model: RoofModel) -> list[dict]:
     return edges
 
 
+def trim_fallback_overlaps(model: RoofModel, max_dz: float = 0.5) -> dict[int, float]:
+    """Area of each fallback facet that should not be counted again.
+
+    A fallback facet (traced outline) can lie inside a facet closed by line intersections at
+    the same height: on delft_01 two traced pieces of the curved top (24 m²) sat inside the flat
+    top's polygon and were counted twice. Overlap with a facet whose surface is more than
+    max_dz higher or lower there is kept: that's a higher roof overhanging a lower one, and
+    the lower roof really does continue underneath.
+    Returns {facet: true (sloped) area to subtract}.
+    """
+    from shapely.geometry import Polygon
+
+    trims = {}
+    good = [P for P in model.polygons if not P.fallback]
+    for F in (P for P in model.polygons if P.fallback):
+        f_plan = Polygon(F.vertices[:, :2]).buffer(0)
+        overlap = 0.0
+        for G in good:
+            inter = f_plan.intersection(Polygon(G.vertices[:, :2]).buffer(0))
+            if inter.area < 1e-6:
+                continue
+            cx, cy = inter.centroid.x, inter.centroid.y
+            z_f, z_g = (_height_at(P.plane, cx, cy) for P in (F, G))
+            if abs(z_f - z_g) <= max_dz:
+                overlap += inter.area
+        if overlap > 0:
+            frac = min(1.0, overlap / max(f_plan.area, 1e-9))
+            trims[F.facet] = frac * F.area
+    return trims
+
+
+def _height_at(plane, x: float, y: float) -> float:
+    n, c = plane.normal, plane.centroid
+    return float(c[2] - (n[0] * (x - c[0]) + n[1] * (y - c[1])) / n[2]) if abs(n[2]) > 1e-6 else float(c[2])
+
+
 def measurement_report(model: RoofModel, meta: dict) -> dict:
+    trims = trim_fallback_overlaps(model)
     facets = []
     for P in model.polygons:
         pitch = pitch_deg(P.plane.normal)
         az = azimuth_deg(P.plane.normal)
+        area = P.area - trims.get(P.facet, 0.0)
         facets.append({
             "id": P.facet,
             "points": int((model.seg.labels == P.facet).sum()),
@@ -94,8 +132,9 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
             "pitch_rise_per_12": round(rise_per_12(pitch), 1),
             "azimuth_deg": None if az is None else round(az, 1),
             "facing": compass(az),
-            "area_m2": round(P.area, 2),
-            "area_ft2": round(P.area * M2_TO_FT2, 1),
+            "area_m2": round(area, 2),
+            "area_ft2": round(area * M2_TO_FT2, 1),
+            "area_not_counted_m2": round(trims[P.facet], 2) if P.facet in trims else None,
             "plan_area_m2": round(P.plan_area, 2),
             "outline": "traced (fallback)" if P.fallback else "plane and line intersections",
             "fallback_reason": P.fallback_reason,
@@ -121,6 +160,9 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
     if fallback:
         notes.append(f"{len(fallback)} facet(s) use a traced outline, not line intersections: their area is "
                      "approximate and their sides are unclassified.")
+    if trims:
+        notes.append(f"{sum(trims.values()):.1f} m² of traced facet(s) {sorted(trims)} lies inside other facets at the "
+                     "same height and is not counted twice.")
     disagreements = [e["endpoint_disagreement_m"] for e in edges if e["endpoint_disagreement_m"] is not None]
     if disagreements and max(disagreements) > 0.25:
         notes.append(f"Shared edges were reconciled from two facets that disagreed by up to {max(disagreements):.2f} m "
