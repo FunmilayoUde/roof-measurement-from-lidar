@@ -340,3 +340,25 @@ edges counted once (average of the two facets' sides).
   and delft_01's hump area and its 3.2 m² piece.
 - delft_05's NW slope has two ridge sides (4.65 and 3.69 m), with the SE slope and a SE corner
   piece facing 18° apart: the twisting SE side from stage 2.
+
+## Stage 4: measurement report
+
+Source: `scripts/stage4_report.py` → `data/interim/<house>/report.json` (example:
+`docs/examples/delft_03_report.json`). Each physical edge listed once; a shared edge's two versions
+are averaged if they disagree by ≤ 0.5 m, otherwise their overlap is kept. 1 square = 100 ft².
+
+Synthetic check (`tests/test_measure.py`, 3 seeds each): edge counts exactly gable 7, hip 9,
+cross-gable 15; totals by type within 0.3 m; roof area within 2%.
+
+| house | facets (fallback) | roof area m² | ft² | squares | ridge m | hip m | break m | eave m | rake m | perimeter m | unclassified m | max shared-edge disagreement m |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| delft_02 | 2 (0) | 93.5 | 1007 | 10.07 | | | | | | 55.46 | | |
+| delft_03 | 5 (2) | 164.6 | 1772 | 17.72 | 12.45 | | 4.66 | 24.89 | 17.67 | 24.32 | 19.53 | 0.44 |
+| delft_05 | 4 (2) | 92.8 | 999 | 9.99 | 7.60 | | | 14.73 | 23.08 | | 20.95 | 3.51 |
+| delft_01 | 8 (2) | 251.9 | 2711 | 27.11 | | 12.03 | 23.45 | 39.67 | 2.39 | 40.69 | 35.24 | 0.58 |
+
+- delft_05's ridge read 9.72 m when the two versions were averaged; its SE facet's ridge also runs
+  along a corner piece, so the versions cover different stretches (3.51 m apart). Overlap: 7.60 m.
+- "unclassified" = sides of fallback facets plus outer sides neither level nor up-slope. It is
+  12–14% of the edge length on the three pitched houses: the small facets are the weak spot.
+- Not yet validated against anything independent; that is stage 5.

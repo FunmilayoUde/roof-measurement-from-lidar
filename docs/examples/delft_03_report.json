@@ -1,0 +1,723 @@
+{
+  "house_id": "delft_03",
+  "source": {
+    "house_id": "delft_03",
+    "bag_id": "<bag-id>",
+    "tile": "AHN5_(withheld).LAZ",
+    "crs": "EPSG:28992",
+    "offset_xyz": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "footprint_area_m2": 119.8
+  },
+  "settings": {
+    "method": "ransac",
+    "threshold_m": 0.12,
+    "min_area_m2": 1.0,
+    "min_points": 32,
+    "density_pts_per_m2": 31.59,
+    "seed": 0
+  },
+  "units": {
+    "length": "m (and ft)",
+    "area": "m² (and ft²)",
+    "square": "100 ft²"
+  },
+  "totals": {
+    "roof_area_m2": 164.6,
+    "roof_area_ft2": 1772.0,
+    "squares": 17.72,
+    "facets": 5,
+    "length_m_by_type": {
+      "ridge": 12.45,
+      "break": 4.66,
+      "eave": 24.89,
+      "rake": 17.67,
+      "perimeter": 24.32,
+      "unclassified": 19.53
+    },
+    "length_ft_by_type": {
+      "ridge": 40.8,
+      "break": 15.3,
+      "eave": 81.7,
+      "rake": 58.0,
+      "perimeter": 79.8,
+      "unclassified": 64.1
+    }
+  },
+  "quality": {
+    "coverage": 0.9745,
+    "unassigned_points": 106,
+    "fallback_facets": [
+      3,
+      4
+    ],
+    "notes": [
+      "2 facet(s) use a traced outline, not line intersections: their area is approximate and their sides are unclassified.",
+      "Shared edges were reconciled from two facets that disagreed by up to 0.44 m at an endpoint (above 0.5 m, the overlap of the two versions is kept)."
+    ]
+  },
+  "facets": [
+    {
+      "id": 0,
+      "points": 1443,
+      "pitch_deg": 42.7,
+      "pitch_rise_per_12": 11.1,
+      "azimuth_deg": 339.4,
+      "facing": "NNW",
+      "area_m2": 56.08,
+      "area_ft2": 603.7,
+      "plan_area_m2": 41.22,
+      "outline": "plane and line intersections",
+      "fallback_reason": null,
+      "vertices_local_m": [
+        [
+          -5.749,
+          -0.374,
+          8.478
+        ],
+        [
+          -6.902,
+          2.687,
+          5.46
+        ],
+        [
+          4.956,
+          7.15,
+          5.46
+        ],
+        [
+          6.095,
+          4.123,
+          8.445
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "points": 1276,
+      "pitch_deg": 0.4,
+      "pitch_rise_per_12": 0.1,
+      "azimuth_deg": 253.2,
+      "facing": "WSW",
+      "area_m2": 45.07,
+      "area_ft2": 485.1,
+      "plan_area_m2": 45.07,
+      "outline": "plane and line intersections",
+      "fallback_reason": null,
+      "vertices_local_m": [
+        [
+          6.36,
+          -4.203,
+          3.725
+        ],
+        [
+          -2.904,
+          -7.001,
+          3.652
+        ],
+        [
+          -3.464,
+          -5.146,
+          3.652
+        ],
+        [
+          -4.766,
+          -2.704,
+          3.648
+        ],
+        [
+          4.736,
+          0.165,
+          3.723
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "points": 1105,
+      "pitch_deg": 44.1,
+      "pitch_rise_per_12": 11.6,
+      "azimuth_deg": 159.1,
+      "facing": "SSE",
+      "area_m2": 53.93,
+      "area_ft2": 580.5,
+      "plan_area_m2": 38.74,
+      "outline": "plane and line intersections",
+      "fallback_reason": null,
+      "vertices_local_m": [
+        [
+          5.687,
+          3.967,
+          8.446
+        ],
+        [
+          6.814,
+          1.023,
+          5.393
+        ],
+        [
+          -4.603,
+          -3.346,
+          5.393
+        ],
+        [
+          -5.742,
+          -0.371,
+          8.478
+        ]
+      ]
+    },
+    {
+      "id": 3,
+      "points": 143,
+      "pitch_deg": 42.1,
+      "pitch_rise_per_12": 10.9,
+      "azimuth_deg": 69.0,
+      "facing": "ENE",
+      "area_m2": 5.05,
+      "area_ft2": 54.3,
+      "plan_area_m2": 3.74,
+      "outline": "traced (fallback)",
+      "fallback_reason": "only 2 sides",
+      "vertices_local_m": [
+        [
+          8.093,
+          -3.032,
+          3.901
+        ],
+        [
+          7.016,
+          -2.689,
+          4.7
+        ],
+        [
+          6.399,
+          -1.584,
+          4.862
+        ],
+        [
+          5.943,
+          -0.277,
+          4.824
+        ],
+        [
+          6.119,
+          0.617,
+          4.385
+        ],
+        [
+          6.797,
+          0.436,
+          3.872
+        ],
+        [
+          7.775,
+          -1.851,
+          3.787
+        ]
+      ]
+    },
+    {
+      "id": 4,
+      "points": 90,
+      "pitch_deg": 51.6,
+      "pitch_rise_per_12": 15.1,
+      "azimuth_deg": 249.6,
+      "facing": "WSW",
+      "area_m2": 4.49,
+      "area_ft2": 48.4,
+      "plan_area_m2": 2.79,
+      "outline": "traced (fallback)",
+      "fallback_reason": "consecutive parallel internal sides",
+      "vertices_local_m": [
+        [
+          4.858,
+          0.101,
+          3.839
+        ],
+        [
+          5.745,
+          0.396,
+          5.018
+        ],
+        [
+          6.488,
+          -2.024,
+          4.834
+        ],
+        [
+          6.184,
+          -3.599,
+          3.783
+        ]
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": 0,
+      "type": "ridge",
+      "facets": [
+        0,
+        2
+      ],
+      "length_m": 12.45,
+      "length_ft": 40.8,
+      "endpoint_disagreement_m": 0.44,
+      "p0_local_m": [
+        5.891,
+        4.045,
+        8.446
+      ],
+      "p1_local_m": [
+        -5.745,
+        -0.373,
+        8.478
+      ]
+    },
+    {
+      "id": 1,
+      "type": "break",
+      "facets": [
+        1,
+        4
+      ],
+      "length_m": 4.66,
+      "length_ft": 15.3,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        4.736,
+        0.165,
+        3.723
+      ],
+      "p1_local_m": [
+        6.36,
+        -4.203,
+        3.725
+      ]
+    },
+    {
+      "id": 2,
+      "type": "eave",
+      "facets": [
+        0
+      ],
+      "length_m": 12.67,
+      "length_ft": 41.6,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        -6.902,
+        2.687,
+        5.46
+      ],
+      "p1_local_m": [
+        4.956,
+        7.15,
+        5.46
+      ]
+    },
+    {
+      "id": 3,
+      "type": "eave",
+      "facets": [
+        2
+      ],
+      "length_m": 12.22,
+      "length_ft": 40.1,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        6.814,
+        1.023,
+        5.393
+      ],
+      "p1_local_m": [
+        -4.603,
+        -3.346,
+        5.393
+      ]
+    },
+    {
+      "id": 4,
+      "type": "rake",
+      "facets": [
+        0
+      ],
+      "length_m": 4.45,
+      "length_ft": 14.6,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        -5.749,
+        -0.374,
+        8.478
+      ],
+      "p1_local_m": [
+        -6.902,
+        2.687,
+        5.46
+      ]
+    },
+    {
+      "id": 5,
+      "type": "rake",
+      "facets": [
+        0
+      ],
+      "length_m": 4.4,
+      "length_ft": 14.4,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        4.956,
+        7.15,
+        5.46
+      ],
+      "p1_local_m": [
+        6.095,
+        4.123,
+        8.445
+      ]
+    },
+    {
+      "id": 6,
+      "type": "rake",
+      "facets": [
+        2
+      ],
+      "length_m": 4.39,
+      "length_ft": 14.4,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        5.687,
+        3.967,
+        8.446
+      ],
+      "p1_local_m": [
+        6.814,
+        1.023,
+        5.393
+      ]
+    },
+    {
+      "id": 7,
+      "type": "rake",
+      "facets": [
+        2
+      ],
+      "length_m": 4.43,
+      "length_ft": 14.6,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        -4.603,
+        -3.346,
+        5.393
+      ],
+      "p1_local_m": [
+        -5.742,
+        -0.371,
+        8.478
+      ]
+    },
+    {
+      "id": 8,
+      "type": "perimeter",
+      "facets": [
+        1
+      ],
+      "length_m": 9.68,
+      "length_ft": 31.7,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        6.36,
+        -4.203,
+        3.725
+      ],
+      "p1_local_m": [
+        -2.904,
+        -7.001,
+        3.652
+      ]
+    },
+    {
+      "id": 9,
+      "type": "perimeter",
+      "facets": [
+        1
+      ],
+      "length_m": 1.94,
+      "length_ft": 6.4,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        -2.904,
+        -7.001,
+        3.652
+      ],
+      "p1_local_m": [
+        -3.464,
+        -5.146,
+        3.652
+      ]
+    },
+    {
+      "id": 10,
+      "type": "perimeter",
+      "facets": [
+        1
+      ],
+      "length_m": 2.77,
+      "length_ft": 9.1,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        -3.464,
+        -5.146,
+        3.652
+      ],
+      "p1_local_m": [
+        -4.766,
+        -2.704,
+        3.648
+      ]
+    },
+    {
+      "id": 11,
+      "type": "perimeter",
+      "facets": [
+        1
+      ],
+      "length_m": 9.93,
+      "length_ft": 32.6,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        -4.766,
+        -2.704,
+        3.648
+      ],
+      "p1_local_m": [
+        4.736,
+        0.165,
+        3.723
+      ]
+    },
+    {
+      "id": 12,
+      "type": "unclassified",
+      "facets": [
+        3
+      ],
+      "length_m": 1.38,
+      "length_ft": 4.5,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        8.093,
+        -3.032,
+        3.901
+      ],
+      "p1_local_m": [
+        7.016,
+        -2.689,
+        4.7
+      ]
+    },
+    {
+      "id": 13,
+      "type": "unclassified",
+      "facets": [
+        3
+      ],
+      "length_m": 1.28,
+      "length_ft": 4.2,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        7.016,
+        -2.689,
+        4.7
+      ],
+      "p1_local_m": [
+        6.399,
+        -1.584,
+        4.862
+      ]
+    },
+    {
+      "id": 14,
+      "type": "unclassified",
+      "facets": [
+        3
+      ],
+      "length_m": 1.38,
+      "length_ft": 4.5,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        6.399,
+        -1.584,
+        4.862
+      ],
+      "p1_local_m": [
+        5.943,
+        -0.277,
+        4.824
+      ]
+    },
+    {
+      "id": 15,
+      "type": "unclassified",
+      "facets": [
+        3
+      ],
+      "length_m": 1.01,
+      "length_ft": 3.3,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        5.943,
+        -0.277,
+        4.824
+      ],
+      "p1_local_m": [
+        6.119,
+        0.617,
+        4.385
+      ]
+    },
+    {
+      "id": 16,
+      "type": "unclassified",
+      "facets": [
+        3
+      ],
+      "length_m": 0.87,
+      "length_ft": 2.9,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        6.119,
+        0.617,
+        4.385
+      ],
+      "p1_local_m": [
+        6.797,
+        0.436,
+        3.872
+      ]
+    },
+    {
+      "id": 17,
+      "type": "unclassified",
+      "facets": [
+        3
+      ],
+      "length_m": 2.49,
+      "length_ft": 8.2,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        6.797,
+        0.436,
+        3.872
+      ],
+      "p1_local_m": [
+        7.775,
+        -1.851,
+        3.787
+      ]
+    },
+    {
+      "id": 18,
+      "type": "unclassified",
+      "facets": [
+        3
+      ],
+      "length_m": 1.23,
+      "length_ft": 4.0,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        7.775,
+        -1.851,
+        3.787
+      ],
+      "p1_local_m": [
+        8.093,
+        -3.032,
+        3.901
+      ]
+    },
+    {
+      "id": 19,
+      "type": "unclassified",
+      "facets": [
+        4
+      ],
+      "length_m": 1.5,
+      "length_ft": 4.9,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        4.858,
+        0.101,
+        3.839
+      ],
+      "p1_local_m": [
+        5.745,
+        0.396,
+        5.018
+      ]
+    },
+    {
+      "id": 20,
+      "type": "unclassified",
+      "facets": [
+        4
+      ],
+      "length_m": 2.54,
+      "length_ft": 8.3,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        5.745,
+        0.396,
+        5.018
+      ],
+      "p1_local_m": [
+        6.488,
+        -2.024,
+        4.834
+      ]
+    },
+    {
+      "id": 21,
+      "type": "unclassified",
+      "facets": [
+        4
+      ],
+      "length_m": 1.92,
+      "length_ft": 6.3,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        6.488,
+        -2.024,
+        4.834
+      ],
+      "p1_local_m": [
+        6.184,
+        -3.599,
+        3.783
+      ]
+    },
+    {
+      "id": 22,
+      "type": "unclassified",
+      "facets": [
+        4
+      ],
+      "length_m": 3.93,
+      "length_ft": 12.9,
+      "endpoint_disagreement_m": null,
+      "p0_local_m": [
+        6.184,
+        -3.599,
+        3.783
+      ],
+      "p1_local_m": [
+        4.858,
+        0.101,
+        3.839
+      ]
+    }
+  ]
+}

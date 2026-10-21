@@ -11,6 +11,19 @@ uv sync                 # Python 3.12 (Open3D has no wheels for newer versions y
 uv run pytest
 ```
 
+## Running the pipeline on one house
+
+```sh
+uv run python scripts/stage1_isolate.py --laz data/raw/<tile>.LAZ --bag-id <BAG pand id> --house-id <name> --crs EPSG:28992
+uv run python scripts/stage2_segment.py --house-id <name> --method ransac   # planes, previews, normal map
+uv run python scripts/stage3_topology.py --house-id <name>                 # facet polygons, typed edges
+uv run python scripts/stage4_report.py --house-id <name>                   # report.json
+```
+
+Finding houses: `scripts/scout_tiles.py` scores AHN sub-tiles around a place before downloading;
+`scripts/find_candidates.py` lists detached houses in a tile or bbox. Settings were chosen with
+`scripts/stage2_sweep.py`. Example output: `docs/examples/`.
+
 ## Layout
 
 ```
@@ -18,7 +31,15 @@ src/roofrecon/
   las_io.py      chunked LAZ reading with a bbox filter; header summary
   footprint.py   OSM building lookup (Overpass) and reprojection
   isolate.py     class filter, footprint crop, buffer sweep, recentering, density
-  viz.py         matplotlib snapshot, Open3D conversion, .ply writing
+  planes.py      plane fit, pitch, azimuth, areas, alpha shape
+  normals.py     per-point normals by local PCA
+  segment.py     sequential RANSAC, region growing, clean-up
+  topology.py    plane intersections, corners, ridge/hip/valley/break
+  polygons.py    facet polygons with eave/rake/top/perimeter sides
+  pipeline.py    stages 2-3 with the chosen settings
+  measure.py     the stage 4 report
+  report.py      per-plane tables for stage 2
+  viz.py         previews, normal map, .ply writing
 scripts/
   stage1_isolate.py   tile + house -> data/interim/<id>/{roof.ply, stats.json, preview.png}
   view.py             Open3D viewer

@@ -18,9 +18,7 @@ import numpy as np
 import open3d as o3d
 
 from roofrecon.planes import azimuth_deg, hull_area, pitch_deg
-from roofrecon.polygons import roof_polygons
-from roofrecon.segment import segment_ransac
-from roofrecon.topology import internal_edges
+from roofrecon.pipeline import MIN_AREA_M2, THRESHOLD_M, build_roof
 
 # Validated categorical slots (reference palette, light mode), one per edge kind, fixed order.
 KIND_COLORS = {"ridge": "#2a78d6", "hip": "#eb6834", "valley": "#1baf7a", "eave": "#eda100",
@@ -31,8 +29,8 @@ KIND_COLORS = {"ridge": "#2a78d6", "hip": "#eb6834", "valley": "#1baf7a", "eave"
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--house-id", required=True)
-    ap.add_argument("--threshold", type=float, default=0.12)
-    ap.add_argument("--min-area", type=float, default=1.0)
+    ap.add_argument("--threshold", type=float, default=THRESHOLD_M)
+    ap.add_argument("--min-area", type=float, default=MIN_AREA_M2)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--root", type=Path, default=Path("data/interim"))
     args = ap.parse_args()
@@ -40,9 +38,8 @@ def main() -> None:
     house = args.root / args.house_id
     xyz = np.asarray(o3d.io.read_point_cloud(str(house / "roof.ply")).points)
     density = json.loads((house / "stats.json").read_text())["density_inside_walls"]["nominal_pts_per_m2"]
-    seg = segment_ransac(xyz, threshold=args.threshold, min_points=max(3, round(args.min_area * density)), seed=args.seed)
-    edges = internal_edges(xyz, seg)
-    polys = roof_polygons(xyz, seg, edges)
+    model = build_roof(xyz, density, threshold=args.threshold, min_area=args.min_area, seed=args.seed)
+    seg, edges, polys = model.seg, model.edges, model.polygons
 
     lengths = defaultdict(float)
     facets = []
