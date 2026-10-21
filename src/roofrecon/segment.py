@@ -130,7 +130,7 @@ def segment_ransac(
     iterations: int = 500,
     seed: int = 0,
 ) -> Segmentation:
-    """Sequential RANSAC, then clean-up: reassign -> merge -> reassign.
+    """Sequential RANSAC, then clean-up: reassign -> merge -> reassign -> drop strays and small planes -> absorb.
 
     The order matters. Earlier planes steal strips of later facets along shared edges;
     at a narrow hip-end tip two stolen strips can meet and cut the tip off, which the
@@ -140,7 +140,10 @@ def segment_ransac(
     seg = sequential_ransac(xyz, threshold, min_points, connect_radius, iterations, seed=seed)
     seg = reassign_to_nearest_plane(xyz, seg, threshold)
     seg = merge_coplanar(xyz, seg, touch_radius=connect_radius or 0.3)
-    return reassign_to_nearest_plane(xyz, seg, threshold)
+    seg = reassign_to_nearest_plane(xyz, seg, threshold)
+    seg = keep_largest_components(xyz, seg, connect_radius or 0.3)
+    seg = drop_small_planes(xyz, seg, min_points)
+    return absorb_unassigned(xyz, seg, threshold, connect_radius or 0.3)
 
 
 def merge_coplanar(
@@ -262,6 +265,32 @@ def region_grow(
     return Segmentation(labels, planes)
 
 
+def keep_largest_components(xyz: np.ndarray, seg: Segmentation, radius: float = 0.3) -> Segmentation:
+    """Unassign every point that isn't in its plane's largest connected piece.
+
+    reassign_to_nearest_plane works on infinite planes: a point anywhere on the roof that
+    happens to lie within the threshold of some plane can be handed to it, even metres from
+    that facet. A handful of such strays barely moves the fitted plane but stretches the
+    facet's outline, and so its area: on delft_03 one gable half read 84 m^2 instead of 56.
+    """
+    labels = seg.labels.copy()
+    for k in range(len(seg.planes)):
+        mask = labels == k
+        keep = largest_component(xyz, mask, radius)
+        labels[mask & ~keep] = -1
+    planes = [fit_plane(xyz[labels == k]) for k in range(len(seg.planes))]
+    return Segmentation(labels, planes)
+
+
+def drop_small_planes(xyz: np.ndarray, seg: Segmentation, min_points: int) -> Segmentation:
+    """Unassign planes left with fewer than min_points (e.g. after stray removal) and renumber."""
+    keep = [k for k in range(len(seg.planes)) if (seg.labels == k).sum() >= min_points]
+    remap = np.full(len(seg.planes), -1)
+    remap[keep] = np.arange(len(keep))
+    labels = np.where(seg.labels >= 0, remap[np.maximum(seg.labels, 0)], -1)
+    return Segmentation(labels, [seg.planes[k] for k in keep])
+
+
 def absorb_unassigned(xyz: np.ndarray, seg: Segmentation, threshold: float, radius: float = 0.3, rounds: int = 10) -> Segmentation:
     """Give unassigned points to an adjacent plane they lie on.
 
@@ -300,7 +329,8 @@ def segment_region_growing(
     grow_radius: float = 0.3,
     min_points: int = 30,
 ) -> Segmentation:
-    """Normals -> region growing -> merge -> absorb the ridge bands -> reassign -> merge -> reassign.
+    """Normals -> region growing -> merge -> absorb the ridge bands -> reassign -> merge ->
+    reassign -> drop strays and small planes -> absorb.
 
     The second merge catches pieces of one facet that were separated by the unassigned
     band. They only touch, and only fit one plane cleanly, once the band is filled and
@@ -314,7 +344,10 @@ def segment_region_growing(
     seg = absorb_unassigned(xyz, seg, threshold, grow_radius)
     seg = reassign_to_nearest_plane(xyz, seg, threshold)
     seg = merge_coplanar(xyz, seg, touch_radius=grow_radius)
-    return reassign_to_nearest_plane(xyz, seg, threshold)
+    seg = reassign_to_nearest_plane(xyz, seg, threshold)
+    seg = keep_largest_components(xyz, seg, grow_radius)
+    seg = drop_small_planes(xyz, seg, min_points)
+    return absorb_unassigned(xyz, seg, threshold, grow_radius)
 
 
 def reassign_to_nearest_plane(xyz: np.ndarray, seg: Segmentation, threshold: float) -> Segmentation:

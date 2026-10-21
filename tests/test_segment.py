@@ -135,3 +135,21 @@ def test_ridge_band_left_by_growing_is_absorbed():
     # 98.8%: absorption needs a labelled neighbour, so a few sparse points at the eave
     # corners whose only neighbours are also unassigned stay out.
     assert final.coverage > 0.98
+
+
+@pytest.mark.parametrize("segment", [segment_ransac, segment_region_growing])
+def test_stray_coplanar_points_do_not_inflate_area(segment):
+    """10 points 3 m off the south eave, exactly on the south facet's plane extended.
+    Distance-only reassignment would give them to that facet and stretch its hull."""
+    from roofrecon.planes import hull_area
+
+    roof = gable()
+    rng = np.random.default_rng(2)
+    y = rng.uniform(-3.5, -3.0, 10)
+    strays = np.column_stack([rng.uniform(0, 10, 10), y, 5.0 + np.tan(np.radians(35.0)) * y])
+    xyz = np.vstack([roof.xyz, strays])
+    seg = segment(xyz, threshold=0.10)
+    assert np.all(seg.labels[-10:] == -1)
+    south = np.bincount(seg.labels[: len(roof.xyz)][roof.labels == 0][seg.labels[: len(roof.xyz)][roof.labels == 0] >= 0]).argmax()
+    area = hull_area(xyz[seg.labels == south], seg.planes[south])
+    assert area == pytest.approx(roof.true_areas[0], rel=0.03)

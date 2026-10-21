@@ -153,3 +153,34 @@ Read off the stage-1 previews (plan + two elevations) only. A range where the pr
 
 Not expected as planes: chimneys (mostly unlabelled), the 17 low building-class points on delft_01.
 Any plane steeper than ~75° is a wall, not a roof facet.
+
+Pipeline change after the synthetic tables above: both methods now end with "keep each plane's
+largest connected piece → drop planes under min_points → absorb by adjacency". Rerun on the
+synthetic set: plane counts unchanged in every row; mislabelled within ±0.5 points and
+coverage within ±0.8 points of the tables above.
+
+### Real houses: first run
+
+Source: `scripts/stage2_segment.py`, threshold 0.10 m, min_area 1 m² (× house density), connect /
+grow radius 0.3 m; region growing: normal radius 0.5 m, angle 8°. Area = convex hull in the plane.
+Walls (> 75°): none found.
+
+| house | expected | RANSAC planes | RG planes | coverage R / RG | median rms m R / RG | roof true area m² R / RG |
+|---|---|---|---|---|---|---|
+| delft_01 | 6 (6–7) | 9 | 15 | 0.828 / 0.899 | 0.029 / 0.025 | 224.3 / 240.4 |
+| delft_02 | 2 | 2 | 3 | 0.952 / 0.944 | 0.032 / 0.025 | 93.3 / 94.1 |
+| delft_03 | 4 (3–5) | 5 | 5 | 0.964 / 0.963 | 0.027 / 0.027 | 162.9 / 163.2 |
+| delft_05 | 4 (4–6) | 4 | 7 | 0.894 / 0.916 | 0.035 / 0.031 | 100.7 / 102.7 |
+
+- delft_01, prediction missed: it's a mansard (four sides at 55–56°, both methods), and the
+  "flat" top isn't planar. A cross-section shows two smooth humps ~0.25 m high and ~2 m wide
+  along the roof, plus a smaller bump and the chimney. Both methods slice the top into stripes.
+- delft_02: RANSAC matches (0.4° and 0.2°). RG adds a 122-point, 2.8 m², 12.6° plane, at a small
+  round feature visible in the normal map near the roof edge.
+- delft_03: within range, and the two methods agree. Matches the 5 colour patches in the normal
+  map. Gable halves 55.4 / 56.0 m² at 42.7° / 44.1° (RANSAC).
+- delft_05: count matches for RANSAC, but unresolved. The normal map shows the SE slope's facing
+  changing gradually, plus small corner patches. RANSAC folds the corners into the SE slope; RG
+  separates them but also splits the NW slope (301° / 314°).
+- Before stray removal, reassignment by distance alone handed far-away coplanar points to planes:
+  delft_03's south gable half read 84.3 m² instead of 55.9 m².
