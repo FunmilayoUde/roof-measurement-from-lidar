@@ -184,3 +184,66 @@ Walls (> 75°): none found.
   separates them but also splits the NW slope (301° / 314°).
 - Before stray removal, reassignment by distance alone handed far-away coplanar points to planes:
   delft_03's south gable half read 84.3 m² instead of 55.9 m².
+
+### Parameter sweeps on real houses
+
+Source: `scripts/stage2_sweep.py` (172 one-at-a-time runs, RANSAC seed 0; then a RANSAC
+threshold × min_area grid over seeds 0–9). Figures: `docs/figures/sweep_*.png`.
+References: delft_02 must give exactly 2 flat planes; delft_03 exactly 5, gable halves within 5%
+in area. delft_01 and delft_05 are reported but don't decide settings.
+
+One-at-a-time (other settings at threshold 0.10, min_area 1.0, normal radius 0.5, angle 8°):
+
+| setting | RANSAC passes both references | region growing passes both references |
+|---|---|---|
+| threshold 0.04–0.25 m | 0.08–0.25 | never (delft_02 always gets a 3rd plane) |
+| min_area 0.25–4 m² | 1.0–2.0 | never (delft_03 needs exactly 1.0, delft_02 needs ≥ 2.0) |
+| normal radius 0.3–1.0 m | n/a | never (delft_03 passes only at 0.5) |
+| angle 4–20° | n/a | never (delft_03 passes at 8–20°) |
+
+RANSAC joint grid, fraction of 10 seeds passing both references:
+
+| threshold \ min_area | 0.75 | 1.0 | 1.5 | 2.0 |
+|---|---|---|---|---|
+| 0.08 | 0% | 30% | 100% | 90% |
+| 0.10 | 100% | 100% | 100% | 90% |
+| 0.12 | 100% | 100% | 100% | 10% |
+| 0.15 | 100% | 100% | 100% | 0% |
+| 0.20 | 100% | 100% | 30% | 0% |
+
+The seed-0 sweep made min_area 2.0 look safe; over 10 seeds it mostly isn't.
+
+**Chosen: RANSAC, threshold 0.12 m, min_area 1.0 m²**, the centre of the all-seeds-pass region.
+Seed stability there (10 seeds):
+
+| house | planes | coverage | roof true area m² |
+|---|---|---|---|
+| delft_02 | 2 (10/10) | 0.971–0.973 | 94.3–94.5 |
+| delft_03 | 5 (10/10) | 0.973–0.974 | 163.9–164.0 |
+| delft_05 | 4 (10/10) | 0.931–0.940 | 101.5–102.2 |
+| delft_01 | 6 (2), 8 (5), 9 (2), 11 (1) | 0.844–0.916 | 216.5–241.0 |
+
+Trends:
+- Coverage rises with threshold; on the references it is ≥ 0.97 from 0.12 m.
+- Median plane rms rises roughly linearly with threshold (wider inlier band). On delft_05 RANSAC's
+  rms climbs from 0.035 to 0.060 m between 0.10 and 0.25 m: separate slopes merging.
+- Roof area on the references is flat from 0.08 m (delft_03 163–165 m², delft_02 93–96 m²).
+- Below min_area 1.0, delft_03 gains a fragment; at ≥ 3.0 it loses its smallest real facet
+  (2.5 m² in plan).
+- Region growing: radius 0.3–0.4 m over-splits flat roofs (delft_02: 7 and 5 planes), ≥ 0.6 m
+  loses delft_03's small facet; angle 4° over-splits (delft_02: 8 planes).
+- Region growing's persistent 3rd plane on delft_02 is a ~2.8 m², 12.6° feature at a round object
+  visible in the normal map. It is real, but it isn't a roof facet.
+
+Decision: RANSAC carries into stage 3. Region growing has no setting that passes both references
+on real data, though it fixed the shallow-hip slab failure on synthetic roofs; that case hasn't
+appeared on a real house yet. The normal map stays as an independent check.
+
+Final stage 2 run (RANSAC, threshold 0.12, min_area 1.0):
+
+| house | planes | coverage | median rms m | roof true area m² |
+|---|---|---|---|---|
+| delft_02 | 2 | 0.973 | 0.037 | 94.5 |
+| delft_03 | 5 | 0.973 | 0.029 | 164.0 |
+| delft_05 | 4 | 0.933 | 0.037 | 101.5 |
+| delft_01 | 8 | 0.844 | 0.032 | 223.3 |

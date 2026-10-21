@@ -17,19 +17,18 @@ from pathlib import Path
 import numpy as np
 import open3d as o3d
 
-from roofrecon.planes import azimuth_deg, hull_area, pitch_deg, plan_hull_area
+from roofrecon.report import summarize
 from roofrecon.segment import segment_ransac, segment_region_growing
 from roofrecon.normals import estimate_normals
 from roofrecon.viz import save_normal_map, save_segment_snapshot, write_segment_ply
-
-WALL_PITCH_DEG = 75.0  # steeper than this is a wall, not a roof facet
 
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--house-id", required=True)
     ap.add_argument("--method", choices=["ransac", "rg"], required=True)
-    ap.add_argument("--threshold", type=float, default=0.10, help="Max point-to-plane distance, m")
+    ap.add_argument("--threshold", type=float, default=0.12,
+                    help="Max point-to-plane distance, m (chosen by scripts/stage2_sweep.py)")
     ap.add_argument("--min-area", type=float, default=1.0,
                     help="Smallest plane to keep, m² of plan area; converted to points with the house's density")
     ap.add_argument("--connect-radius", type=float, default=0.3, help="Connectivity / grow radius, m")
@@ -53,42 +52,14 @@ def main() -> None:
             grow_radius=args.connect_radius, min_points=min_points,
         )
 
-    planes = []
-    for k, p in enumerate(seg.planes):
-        pts = xyz[seg.labels == k]
-        pitch = pitch_deg(p.normal)
-        planes.append({
-            "id": k,
-            "points": int(len(pts)),
-            "pitch_deg": round(pitch, 2),
-            "azimuth_deg": None if (az := azimuth_deg(p.normal)) is None else round(az, 1),
-            "kind": "wall" if pitch > WALL_PITCH_DEG else ("flat" if pitch < 5.0 else "sloped"),
-            "rms_m": round(p.rms, 4),
-            "true_area_m2": round(hull_area(pts, p), 2),
-            "plan_area_m2": round(plan_area := plan_hull_area(pts), 2),
-            # points / (plan area x house density): ~1 for a solid facet. Far below 1 means
-            # the points are scattered over a large hull, i.e. not a real facet.
-            "fill": round(len(pts) / (plan_area * density), 2) if plan_area > 0 else None,
-            "centroid_local": np.round(p.centroid, 3).tolist(),
-            "normal": np.round(p.normal, 5).tolist(),
-        })
-    planes.sort(key=lambda d: -d["points"])
-
-    roofs = [d for d in planes if d["kind"] != "wall"]
     summary = {
         "house_id": args.house_id,
         "method": args.method,
         "params": {k: v for k, v in vars(args).items() if k not in ("root", "house_id", "method", "out_suffix")}
         | {"min_points": min_points, "density_pts_per_m2": density},
-        "points": int(len(xyz)),
-        "coverage": round(seg.coverage, 4),
-        "planes": len(planes),
-        "roof_planes": len(roofs),
-        "wall_planes": len(planes) - len(roofs),
-        "median_rms_m": round(float(np.median([d["rms_m"] for d in planes])), 4) if planes else None,
-        "roof_true_area_m2": round(sum(d["true_area_m2"] for d in roofs), 1),
-        "per_plane": planes,
-    }
+    } | summarize(xyz, seg, density)
+    planes = summary["per_plane"]
+    roofs = [d for d in planes if d["kind"] != "wall"]
 
     out = house / f"stage2_{args.method}{args.out_suffix}"
     out.mkdir(parents=True, exist_ok=True)
