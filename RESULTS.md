@@ -133,7 +133,9 @@ seeds only where surface variation ≤ 2 × median; then merge → absorb → re
 | hip 15° | 0.10 | 100 / 90 | 3.56 / 3.39 | 99.4 / 99.7 |
 | hip 15° | 0.20 | 30 / 90 | 56.31 / 3.42 | 91.1 / 99.9 |
 
-Region growing's 4 wrong counts (of 120 runs): two small planes of blended ridge/hip normals
-(36 and 51 points, ≈ 1–1.5 m², one of them at 2.5° on top of the 15° hip ridge), and one hip
-end split in two at the 5 cm threshold (counted in two rows). Both depend on min_points,
-which real houses should set.
+Region growing's 4 wrong counts (of 120 runs):
+- hip 30° at 0.05 m, two runs: one extra 36-point plane of blended normals along a hip line
+  (facing 231°, between south and west); one hip end split in two.
+- hip 15° at 0.10 and 0.20 m, the same seed: one extra 51-point plane at 2.5° on top of the
+  ridge, where the blend of two opposite 15° slopes is nearly flat.
+The extra planes are ≈ 1–1.5 m², just above min_points (30); real houses should set that.
