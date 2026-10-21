@@ -271,3 +271,38 @@ Source: `roofrecon.topology.internal_edges` on RANSAC segmentations (threshold 0
     facet's points alongside the edge, 0.2–1.5 m back from it.
   - When contact points stop short, both ends of an edge could snap to the same corner and
     collapse it (1 seed). Each corner now fixes at most one end.
+
+### Synthetic checks: facet polygons
+
+Source: `roofrecon.polygons.roof_polygons` on RANSAC segmentations (threshold 0.12 m, 33 points),
+20 seeds per roof. Outline: alpha shape, radius 0.75 m. Area = polygon area in the plane.
+Length error = total length of that edge type minus the true total.
+
+| roof | facet area error % (median / min / max) | eave m | rake m | ridge m | hip m | valley m | fallbacks | "other" sides |
+|---|---|---|---|---|---|---|---|---|
+| gable 35° | −0.43 / −1.24 / +0.10 | −0.09 of 20.0 | −0.00 of 19.5 | −0.04 of 10.0 | | | 0 | 2 |
+| hip 30° | −0.06 / −1.53 / +1.21 | −0.01 of 40.0 | | +0.00 of 4.0 | −0.01 of 24.4 | | 0 | 0 |
+| cross-gable 35° | −0.54 / −2.43 / +0.47 | −0.11 of 32.0 | −0.05 of 24.4 | −0.07 of 20.0 | | −0.03 of 6.3 | 0 | 0 |
+
+(length errors are medians over the 20 seeds)
+
+Compared with stage 2's convex-hull area (median −1.1% gable, −1.5% hip, always low), the
+polygon area is closer and no longer one-sided on the hip.
+
+How it got there (each step measured on the same 20-seed set, median facet area error):
+- shapely's concave_hull: its setting is relative to the longest edges, so no value works on all
+  three roofs (−10% to −60% when tight, +7.7% on the notched facet when loose). Replaced by an
+  alpha shape with an absolute radius: one piece, no holes for radius ≥ 0.35 m.
+- Corners from line intersections, outer lines through the outline: −2.7% to −3.5%, with
+  fallbacks. The outline rounds every corner, which leaves short diagonal sides.
+- Dropping short and diagonal artefact sides, and merging consecutive parallel lines (they can't
+  form a corner): fallbacks 0–4.
+- Outer lines moved to the 2nd-outermost point alongside them (boundary points sit inside the true
+  edge): −0.2% to −0.9%.
+- Labelling the outline by which neighbouring facet it touches, instead of matching outline
+  segments to edge lines by distance and angle: valleys from −1.6 m to −0.03 m.
+- Stage 2 fix: keep a plane's minor pieces when within 1 m of its main piece. Dropping them left a
+  97-point hole at a hip-end apex.
+
+Remaining: 2 of 40 gable facets get an "other" side where missing points dent a corner (one rake
+4.9 m short). The snap angle (10°) and artefact length (2 m) could be swept on real houses.

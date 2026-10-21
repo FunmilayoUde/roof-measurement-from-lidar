@@ -265,19 +265,28 @@ def region_grow(
     return Segmentation(labels, planes)
 
 
-def keep_largest_components(xyz: np.ndarray, seg: Segmentation, radius: float = 0.3) -> Segmentation:
-    """Unassign every point that isn't in its plane's largest connected piece.
+def keep_largest_components(xyz: np.ndarray, seg: Segmentation, radius: float = 0.3, far: float = 1.0) -> Segmentation:
+    """Unassign pieces of a plane that are far (more than `far`) from its largest piece.
 
     reassign_to_nearest_plane works on infinite planes: a point anywhere on the roof that
     happens to lie within the threshold of some plane can be handed to it, even metres from
     that facet. A handful of such strays barely moves the fitted plane but stretches the
     facet's outline, and so its area: on delft_03 one gable half read 84 m^2 instead of 56.
+
+    Pieces close to the main one are kept: at a hip-end apex, strips held by the neighbouring
+    facets can briefly cut the tip off, and dropping it left a 97-point hole on a synthetic
+    hip that nothing could refill.
     """
     labels = seg.labels.copy()
     for k in range(len(seg.planes)):
         mask = labels == k
-        keep = largest_component(xyz, mask, radius)
-        labels[mask & ~keep] = -1
+        main = largest_component(xyz, mask, radius)
+        rest = mask & ~main
+        if not rest.any() or not main.any():
+            continue
+        dist, _ = cKDTree(xyz[main]).query(xyz[rest])
+        drop = np.flatnonzero(rest)[dist > far]
+        labels[drop] = -1
     planes = [fit_plane(xyz[labels == k]) for k in range(len(seg.planes))]
     return Segmentation(labels, planes)
 

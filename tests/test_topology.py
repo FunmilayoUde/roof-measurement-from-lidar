@@ -131,3 +131,67 @@ def test_valley_short_contact_and_mixed_labels(seed):
     for e, t in match(roof, internal_edges(roof.xyz, seg), mapping):
         assert e.kind == t["type"]
         assert e.length > 0.5
+
+
+# --- Facet polygons -----------------------------------------------------------------------
+
+from collections import defaultdict
+
+from roofrecon.planes import alpha_shape, to_plane_coords
+from roofrecon.polygons import roof_polygons
+
+OUTER_TRUTH = {  # total outer-edge lengths by kind, from the synthetic geometry
+    "gable": {"eave": 20.0, "rake": 4 * 4 / np.cos(np.radians(35))},
+    "hip": {"eave": 40.0},
+    "cross_gable": {"eave": 32.0, "rake": (4 * 4 + 2 * 2) / np.cos(np.radians(35))},
+}
+
+
+def lengths_by_kind(polys):
+    tot = defaultdict(float)
+    for P in polys:
+        for s in P.sides:
+            tot[s.kind] += s.length / (2 if s.neighbour is not None else 1)  # internal sides appear twice
+    return tot
+
+
+def test_alpha_shape_follows_a_notch_the_convex_hull_bridges():
+    roof = cross_gable()
+    pts = roof.xyz[roof.labels == 0]  # A's south slope, notched by the wing
+    p = fit_plane(pts)
+    uv = to_plane_coords(pts, p)
+    import shapely
+
+    hull = shapely.convex_hull(shapely.multipoints(uv)).area
+    alpha = alpha_shape(uv, 0.75).area
+    assert hull > roof.true_areas[0] * 1.05  # bridges the notch
+    assert alpha < roof.true_areas[0]  # follows it (and sits a little inside the edges)
+
+
+@pytest.mark.parametrize("make", [gable, hip, cross_gable])
+@pytest.mark.parametrize("seed", range(3))
+def test_polygon_area_and_edge_lengths(make, seed):
+    roof = make(seed=seed)
+    seg = segment_ransac(roof.xyz, threshold=0.12, min_points=33, seed=seed)
+    mapping = {k: np.bincount(roof.labels[seg.labels == k]).argmax() for k in range(len(seg.planes))}
+    polys = roof_polygons(roof.xyz, seg, internal_edges(roof.xyz, seg))
+    assert not any(P.fallback for P in polys)
+    for P in polys:
+        assert P.area == pytest.approx(roof.true_areas[mapping[P.facet]], rel=0.025)
+    tot = lengths_by_kind(polys)
+    for kind, truth in OUTER_TRUTH[make.__name__].items():
+        assert tot[kind] == pytest.approx(truth, abs=0.3)
+    for kind in ("ridge", "hip", "valley"):
+        truth = sum(e["length"] for e in roof.edges if e["type"] == kind)
+        assert tot.get(kind, 0.0) == pytest.approx(truth, abs=0.3)
+    assert tot.get("other", 0.0) == 0.0
+
+
+def test_flat_facet_sides_are_perimeter():
+    rng = np.random.default_rng(0)
+    n = 2000
+    xyz = np.column_stack([rng.uniform(0, 8, n), rng.uniform(0, 6, n), 3 + rng.normal(0, 0.02, n)])
+    seg = Segmentation(np.zeros(n, dtype=int), [fit_plane(xyz)])
+    (P,) = roof_polygons(xyz, seg, [])
+    assert {s.kind for s in P.sides} == {"perimeter"}
+    assert P.area == pytest.approx(48.0, rel=0.02)

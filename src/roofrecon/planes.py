@@ -95,3 +95,23 @@ def hull_area(xyz: np.ndarray, plane: Plane) -> float:
 def plan_hull_area(xyz: np.ndarray) -> float:
     """Area seen from above (convex hull of x, y). For a planar facet: hull_area * cos(pitch)."""
     return float(shapely.convex_hull(shapely.multipoints(xyz[:, :2])).area)
+
+
+def alpha_shape(uv: np.ndarray, radius: float):
+    """Outline of 2D points: the union of Delaunay triangles whose circumradius is <= radius.
+
+    Unlike a convex hull it follows notches; unlike shapely's concave_hull, whose setting
+    is relative to the longest edges, `radius` is an absolute length, so it means the same
+    thing on every facet. Too small (near the point spacing) and it bites holes into the
+    facet; too large and it bridges real notches. Returns a shapely (Multi)Polygon.
+    """
+    from scipy.spatial import Delaunay
+
+    tri = Delaunay(uv)
+    a, b, c = (uv[tri.simplices[:, i]] for i in range(3))
+    la, lb, lc = (np.linalg.norm(p - q, axis=1) for p, q in ((b, c), (a, c), (a, b)))
+    area2 = np.abs((b[:, 0] - a[:, 0]) * (c[:, 1] - a[:, 1]) - (c[:, 0] - a[:, 0]) * (b[:, 1] - a[:, 1]))
+    with np.errstate(divide="ignore", invalid="ignore"):
+        circumradius = la * lb * lc / (2 * area2)
+    keep = tri.simplices[circumradius <= radius]
+    return shapely.union_all(shapely.polygons(uv[keep]))
