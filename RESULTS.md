@@ -247,3 +247,27 @@ Final stage 2 run (RANSAC, threshold 0.12, min_area 1.0):
 | delft_03 | 5 | 0.973 | 0.029 | 164.0 |
 | delft_05 | 4 | 0.933 | 0.037 | 101.5 |
 | delft_01 | 8 | 0.844 | 0.032 | 223.3 |
+
+## Stage 3: topology
+
+### Synthetic checks: internal edges
+
+Source: `roofrecon.topology.internal_edges` on RANSAC segmentations (threshold 0.12 m, 33 points),
+20 seeds per roof, 33 pts/m², 3 cm noise. Endpoint error = distance to the nearer true endpoint.
+"Snapped" endpoints are three-plane corners; the rest end where the contact points stop.
+
+| roof | edges found / true | extra | type correct | snapped endpoint error cm (median / p90 / max) | other endpoint error cm (median / p90 / max) |
+|---|---|---|---|---|---|
+| gable 35° | 20 / 20 | 0 | 20 / 20 | none | 33.5 / 79.2 / 158.7 |
+| hip 30° | 100 / 100 | 0 | 100 / 100 | 0.9 / 1.6 / 1.9 (n = 117) | 60.0 / 155.4 / 298.3 |
+| cross-gable 35° | 80 / 80 | 0 | 80 / 80 | 0.5 / 1.0 / 1.4 (n = 44) | 21.8 / 113.9 / 279.8 |
+
+- Three-plane corners are exact to ~1 cm. Endpoints without a third facet (at eave corners and
+  gable ends) are 0.2–3 m short; step 2 replaces them with intersections with the outer edges.
+- Two bugs found by the cross-gable (a T: a wing joining a main gable in two valleys):
+  - Deciding which side of an edge a facet lies on from the facet's centroid fails for a notched
+    facet, which has points on both sides of the edge line: 4 of 20 valleys read as breaks.
+    Right at the line, labels from both facets mix (1 more seed). The side now comes from the
+    facet's points alongside the edge, 0.2–1.5 m back from it.
+  - When contact points stop short, both ends of an edge could snap to the same corner and
+    collapse it (1 seed). Each corner now fixes at most one end.
