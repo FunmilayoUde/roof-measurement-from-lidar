@@ -1,4 +1,6 @@
-# roofrecon
+# Roof Measurement from LiDAR Alone
+
+Python package: `roofrecon`.
 
 Roof reconstruction from open aerial LiDAR: facet polygons with pitch and true area, a typed
 wireframe (ridge, hip, valley, eave, rake), and a measurement report. Numbers go in
