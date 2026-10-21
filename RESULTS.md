@@ -456,3 +456,21 @@ error, and a conservative total bound (facet errors added as if all in the same 
 | delft_02 | 93.5 | 0.7 | 0 |
 | delft_03 | 164.4 | 4.1 | 9.5 (6%) |
 | delft_05 | 92.9 | 3.0 | 7.6 (8%) |
+
+### 3D roof model
+
+Source: `scripts/export_model.py` (from report.json) → `model.obj`/`.mtl`, `model.ply`, `edges.ply`,
+`model_preview.png`. Facets are triangulated in their own planes (constrained Delaunay, holes kept).
+Example: `docs/examples/delft_03_model/`.
+
+Mesh area vs report: synthetic gable, hip and dormer within 0.1% (`tests/test_export.py`). Real houses:
+
+| house | triangles | mesh m² | report m² |
+|---|---|---|---|
+| delft_02 | 4 | 93.5 | 93.5 |
+| delft_03 | 13 | 164.3 | 164.4 |
+| delft_05 | 13 | 93.1 | 92.9 |
+| delft_01 | 60 | 230.9 | 224.2 |
+
+delft_01's mesh keeps the traced hump pieces' full outlines, including the 6.7 m² the report doesn't
+count twice; the model shows the overlap instead of hiding it.

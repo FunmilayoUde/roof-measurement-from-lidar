@@ -18,6 +18,9 @@ uv run python scripts/stage1_isolate.py --laz data/raw/<tile>.LAZ --bag-id <BAG 
 uv run python scripts/stage2_segment.py --house-id <name> --method ransac   # planes, previews, normal map
 uv run python scripts/stage3_topology.py --house-id <name>                 # facet polygons, typed edges
 uv run python scripts/stage4_report.py --house-id <name>                   # report.json
+uv run python scripts/export_model.py --house-id <name>                   # model.obj / .ply, edges, preview
+uv run python scripts/view_model.py --house-id <name>                     # interactive 3D view over the points
+uv run python scripts/stage5_validate.py                                   # footprint checks, hand measurements
 ```
 
 Finding houses: `scripts/scout_tiles.py` scores AHN sub-tiles around a place before downloading;
@@ -38,6 +41,8 @@ src/roofrecon/
   polygons.py    facet polygons with eave/rake/top/perimeter sides
   pipeline.py    stages 2-3 with the chosen settings
   measure.py     the stage 4 report
+  export.py      the 3D roof model (mesh + edges)
+  validate.py    stage 5 checks
   report.py      per-plane tables for stage 2
   viz.py         previews, normal map, .ply writing
 scripts/
