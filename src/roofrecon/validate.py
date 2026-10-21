@@ -66,3 +66,84 @@ def plan_overlap(facets: list[dict]) -> dict:
                 pairs.append({"facets": [facets[i]["id"], facets[j]["id"]], "overlap_m2": round(a, 1)})
     return {"plan_sum_m2": round(total, 1), "plan_union_m2": round(union, 1), "double_counted_m2": round(total - union, 1),
             "overlapping_pairs": sorted(pairs, key=lambda p: -p["overlap_m2"])}
+
+
+def _match_edge(p0, p1, edges: list[dict], max_angle_deg: float = 20.0):
+    """The report edge nearest a picked segment: smallest midpoint distance among edges within
+    max_angle_deg of its direction."""
+    mid, d = (p0 + p1) / 2, (p1 - p0) / np.linalg.norm(p1 - p0)
+    best, best_dist = None, np.inf
+    for e in edges:
+        a, b = np.asarray(e["p0_local_m"]), np.asarray(e["p1_local_m"])
+        ed = (b - a) / max(np.linalg.norm(b - a), 1e-9)
+        if abs(d @ ed) < np.cos(np.radians(max_angle_deg)):
+            continue
+        dist = np.linalg.norm(mid - (a + b) / 2)
+        if dist < best_dist:
+            best, best_dist = e, dist
+    return best, best_dist
+
+
+def _match_facet(p0, p1, facets: list[dict]):
+    """The facet whose plan polygon contains the picked pair's midpoint (nearest if none does)."""
+    mid = (p0 + p1) / 2
+    pt = shapely.points(mid[:2])
+    scored = []
+    for f in facets:
+        if f["area_m2"] <= 0:
+            continue
+        poly = shapely.make_valid(Polygon(np.asarray(f["vertices_local_m"])[:, :2]))
+        scored.append((0.0 if poly.contains(pt) else poly.distance(pt), f))
+    return min(scored, key=lambda s: s[0])[1] if scored else None
+
+
+def compare_hand_measurements(rows: list[dict], report: dict) -> list[dict]:
+    """One result per measurement row: the hand value, the report's value, and the error
+    (report minus hand). Lengths in m, pitch in degrees."""
+    edges = {e["id"]: e for e in report["edges"]}
+    facets = {f["id"]: f for f in report["facets"]}
+    out = []
+    for r in rows:
+        kind = r["kind"]
+        rid = int(r["report_id"]) if r.get("report_id") not in (None, "") else None
+        res = {"house_id": r["house_id"], "kind": kind, "feature": r["feature"], "method": r.get("method"),
+               "repeat": r.get("repeat"), "report_id": rid}
+        if kind in ("edge", "slope"):
+            p0 = np.array([float(r[k]) for k in ("x0", "y0", "z0")])
+            p1 = np.array([float(r[k]) for k in ("x1", "y1", "z1")])
+        if kind == "edge":
+            hand = float(np.linalg.norm(p1 - p0))
+            e = edges.get(rid) if rid is not None else _match_edge(p0, p1, report["edges"])[0]
+            res.update(hand=round(hand, 3), report=None if e is None else e["length_m"],
+                       report_id=None if e is None else e["id"], report_type=None if e is None else e["type"])
+        elif kind == "slope":
+            dz = abs(p1[2] - p0[2])
+            run = float(np.linalg.norm((p1 - p0)[:2]))
+            hand = float(np.degrees(np.arctan2(dz, run)))
+            f = facets.get(rid) if rid is not None else _match_facet(p0, p1, report["facets"])
+            res.update(hand=round(hand, 2), report=None if f is None else f["pitch_deg"],
+                       report_id=None if f is None else f["id"], report_type="pitch")
+        elif kind == "plan_length":
+            hand = float(r["value"])
+            e = edges.get(rid)
+            plan = None if e is None else float(np.linalg.norm((np.asarray(e["p1_local_m"]) - np.asarray(e["p0_local_m"]))[:2]))
+            res.update(hand=round(hand, 3), report=None if plan is None else round(plan, 3),
+                       report_type=None if e is None else e["type"] + " (plan)")
+        else:
+            raise ValueError(f"unknown kind {kind!r}")
+        res["error"] = None if res["report"] is None else round(res["report"] - res["hand"], 3)
+        out.append(res)
+    return out
+
+
+def error_summary(results: list[dict]) -> dict:
+    """Distribution of errors per kind, not just a mean: n, median, IQR, max |error|."""
+    summary = {}
+    for kind in sorted({r["kind"] for r in results}):
+        e = np.array([r["error"] for r in results if r["kind"] == kind and r["error"] is not None])
+        if len(e) == 0:
+            continue
+        q1, med, q3 = np.percentile(e, [25, 50, 75])
+        summary[kind] = {"n": int(len(e)), "median": round(float(med), 3), "iqr": [round(float(q1), 3), round(float(q3), 3)],
+                         "max_abs": round(float(np.abs(e).max()), 3), "mean_abs": round(float(np.abs(e).mean()), 3)}
+    return summary
