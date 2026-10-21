@@ -97,3 +97,43 @@ connect_radius 0.3 m, 500 iterations. "raw" = `sequential_ransac`; "clean" = `se
   facet. Clean-up can't fix a wrong first plane; needs per-point normals.
 - Raw hip errors at 0.10–0.20 m were extra planes: hip-end tips cut off by strips stolen
   along both hips. Reassigning before merging reconnects them.
+
+### Synthetic checks: normals
+
+Source: `roofrecon.normals.estimate_normals`, gable, 33 pts/m², 3 cm noise. Median normal error (°)
+by plan distance from the ridge.
+
+| radius m | neighbours | 0–0.1 m | 0.2–0.3 m | 0.4–0.6 m | > 1.5 m |
+|---|---|---|---|---|---|
+| 0.3 | 8 | 26.5 | 5.6 | 5.2 | 5.32 |
+| 0.5 | 21 | 27.9 | 8.1 | 1.6 | 1.49 |
+| 0.75 | 47 | 31.5 | 15.6 | 2.6 | 0.60 |
+| 1.0 | 83 | 32.3 | 20.6 | 8.7 | 0.34 |
+
+(35° gable; 15° gable follows the same pattern with roughly half the error at the ridge.)
+Larger radius: less noise in the interior, wider blurred band at the ridge.
+
+### Synthetic checks: RANSAC vs region growing
+
+Same setup as the RANSAC table. Region growing: normal radius 0.5 m, angle 8°, grow radius 0.3 m,
+seeds only where surface variation ≤ 2 × median; then merge → absorb → reassign → merge → reassign.
+
+| roof | threshold m | right count RANSAC / RG | mislabelled % median RANSAC / RG | coverage % RANSAC / RG |
+|---|---|---|---|---|
+| gable 35° | 0.05 | 100 / 100 | 0.36 / 0.32 | 95.2 / 95.9 |
+| gable 35° | 0.10 | 100 / 100 | 0.34 / 0.34 | 99.5 / 99.5 |
+| gable 35° | 0.20 | 100 / 100 | 0.34 / 0.34 | 99.6 / 99.5 |
+| gable 10° | 0.05 | 100 / 100 | 1.61 / 1.54 | 90.8 / 92.2 |
+| gable 10° | 0.10 | 100 / 100 | 2.01 / 1.83 | 99.6 / 99.8 |
+| gable 10° | 0.20 | 100 / 100 | 3.13 / 1.84 | 99.7 / 99.9 |
+| hip 30° | 0.05 | 100 / 80 | 1.49 / 1.49 | 93.5 / 94.7 |
+| hip 30° | 0.10 | 100 / 100 | 1.54 / 1.51 | 99.4 / 99.4 |
+| hip 30° | 0.20 | 100 / 100 | 1.58 / 1.52 | 99.2 / 99.6 |
+| hip 15° | 0.05 | 90 / 100 | 3.25 / 3.16 | 91.5 / 92.8 |
+| hip 15° | 0.10 | 100 / 90 | 3.56 / 3.39 | 99.4 / 99.7 |
+| hip 15° | 0.20 | 30 / 90 | 56.31 / 3.42 | 91.1 / 99.9 |
+
+Region growing's 4 wrong counts (of 120 runs): two small planes of blended ridge/hip normals
+(36 and 51 points, ≈ 1–1.5 m², one of them at 2.5° on top of the 15° hip ridge), and one hip
+end split in two at the 5 cm threshold (counted in two rows). Both depend on min_points,
+which real houses should set.

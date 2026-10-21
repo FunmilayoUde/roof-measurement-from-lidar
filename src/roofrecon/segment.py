@@ -188,6 +188,135 @@ def merge_coplanar(
     return Segmentation(new_labels, [planes[k] for k in keep])
 
 
+def region_grow(
+    xyz: np.ndarray,
+    normals: np.ndarray,
+    variation: np.ndarray,
+    grow_radius: float = 0.3,
+    angle_deg: float = 8.0,
+    threshold: float = 0.08,
+    min_points: int = 30,
+    seed_variation_factor: float = 2.0,
+) -> Segmentation:
+    """Flood-fill facets through neighbouring points whose normals agree.
+
+    Seeds are taken flattest-first (lowest surface variation), so regions start in facet
+    interiors, not on ridges. A neighbour joins a region if
+      - its normal is within angle_deg of the region's plane normal, and
+      - it lies within `threshold` of the region's plane.
+    The region's plane is refitted each time the region doubles in size, so it starts
+    from the seed's noisy normal but settles on the facet's.
+
+    Comparing against the region's plane, not the neighbour that reached the point,
+    stops slow drift around curved or gently bending surfaces. The normal test is what
+    RANSAC lacks: points on a 15 degree slope have normals 15 degrees off vertical, so a
+    horizontal region can't swallow them however close they are in height.
+
+    Only points with surface variation <= seed_variation_factor x the median may seed.
+    Along ridges and hips the normals are a blend of both facets, and that blend is
+    consistent along the whole line, so a seed there grows a thin fake plane with an
+    in-between pitch and facing. Band points can still join a real facet's region.
+
+    Regions under min_points are released: their points can still join a later region,
+    but never seed one.
+    """
+    n = len(xyz)
+    tree = cKDTree(xyz)
+    neighbours = tree.query_ball_point(xyz, grow_radius)
+    cos_max = np.cos(np.radians(angle_deg))
+    valid = ~np.isnan(normals[:, 0])
+    order = np.argsort(np.where(valid, variation, np.inf))
+    seed_ok = valid & (variation <= seed_variation_factor * np.nanmedian(variation))
+
+    labels = np.full(n, -1)
+    tried = np.zeros(n, dtype=bool)
+    planes: list[Plane] = []
+    for seed in order:
+        if not seed_ok[seed] or labels[seed] != -1 or tried[seed]:
+            continue
+        k = len(planes)
+        region = [seed]
+        labels[seed] = k
+        normal, origin = normals[seed], xyz[seed]
+        next_refit = 10
+        queue = [seed]
+        while queue:
+            p = queue.pop()
+            for q in neighbours[p]:
+                if labels[q] != -1 or not valid[q]:
+                    continue
+                if abs(normals[q] @ normal) < cos_max or abs((xyz[q] - origin) @ normal) >= threshold:
+                    continue
+                labels[q] = k
+                region.append(q)
+                queue.append(q)
+            if len(region) >= next_refit:
+                fitted = fit_plane(xyz[region])
+                normal, origin = fitted.normal, fitted.centroid
+                next_refit *= 2
+        tried[region] = True
+        if len(region) < min_points:
+            labels[region] = -1
+            continue
+        planes.append(fit_plane(xyz[region]))
+    return Segmentation(labels, planes)
+
+
+def absorb_unassigned(xyz: np.ndarray, seg: Segmentation, threshold: float, radius: float = 0.3, rounds: int = 10) -> Segmentation:
+    """Give unassigned points to an adjacent plane they lie on.
+
+    Region growing leaves the band along ridges unassigned, because normals there blend
+    both facets. A point joins a plane if a neighbour within `radius` already belongs to
+    it and the point is within `threshold` of it; if several qualify, the nearest plane
+    wins. Repeating lets the facets grow into the band from both sides.
+    """
+    labels = seg.labels.copy()
+    tree = cKDTree(xyz)
+    for _ in range(rounds):
+        todo = np.flatnonzero(labels == -1)
+        if len(todo) == 0:
+            break
+        changed = False
+        for i, nbrs in zip(todo, tree.query_ball_point(xyz[todo], radius)):
+            cands = {labels[j] for j in nbrs if labels[j] >= 0}
+            if not cands:
+                continue
+            dists = {k: abs(seg.planes[k].distance(xyz[i:i + 1])[0]) for k in cands}
+            best = min(dists, key=dists.get)
+            if dists[best] < threshold:
+                labels[i] = best
+                changed = True
+        if not changed:
+            break
+    planes = [fit_plane(xyz[labels == k]) for k in range(len(seg.planes))]
+    return Segmentation(labels, planes)
+
+
+def segment_region_growing(
+    xyz: np.ndarray,
+    normal_radius: float = 0.5,
+    angle_deg: float = 8.0,
+    threshold: float = 0.08,
+    grow_radius: float = 0.3,
+    min_points: int = 30,
+) -> Segmentation:
+    """Normals -> region growing -> merge -> absorb the ridge bands -> reassign -> merge -> reassign.
+
+    The second merge catches pieces of one facet that were separated by the unassigned
+    band. They only touch, and only fit one plane cleanly, once the band is filled and
+    ridge points have gone to their nearest plane.
+    """
+    from roofrecon.normals import estimate_normals
+
+    normals, variation, _ = estimate_normals(xyz, normal_radius)
+    seg = region_grow(xyz, normals, variation, grow_radius, angle_deg, threshold, min_points)
+    seg = merge_coplanar(xyz, seg, touch_radius=grow_radius)
+    seg = absorb_unassigned(xyz, seg, threshold, grow_radius)
+    seg = reassign_to_nearest_plane(xyz, seg, threshold)
+    seg = merge_coplanar(xyz, seg, touch_radius=grow_radius)
+    return reassign_to_nearest_plane(xyz, seg, threshold)
+
+
 def reassign_to_nearest_plane(xyz: np.ndarray, seg: Segmentation, threshold: float) -> Segmentation:
     """Give each point to the closest plane it is an inlier of.
 

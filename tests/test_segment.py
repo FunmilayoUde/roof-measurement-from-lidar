@@ -2,10 +2,13 @@ import numpy as np
 import pytest
 
 from roofrecon.planes import pitch_deg
+from roofrecon.normals import estimate_normals
 from roofrecon.segment import (
     merge_coplanar,
     ransac_iterations,
+    region_grow,
     segment_ransac,
+    segment_region_growing,
     sequential_ransac,
 )
 from synthetic_roofs import gable, hip
@@ -91,7 +94,44 @@ def test_known_failure_horizontal_slab_on_shallow_hip():
     """Documents a RANSAC failure, not desired behaviour. On a 15 degree hip with a 20 cm
     threshold, a horizontal slab 40 cm thick through the ridge area holds more points than
     any real facet, so it wins. Distance alone can't reject it; per-point normals can.
-    When region growing or a normal check fixes this, flip the assertion."""
+    test_region_growing_avoids_horizontal_slab_on_shallow_hip covers the fix."""
     roof = hip(pitch_deg=15.0)
     seg = sequential_ransac(roof.xyz, threshold=0.20)
     assert pitch_deg(seg.planes[0].normal) < 5.0
+
+
+def test_region_growing_avoids_horizontal_slab_on_shallow_hip():
+    """The same case RANSAC fails above: normals tilted 15 degrees can't join a flat region."""
+    roof = hip(pitch_deg=15.0)
+    seg = segment_region_growing(roof.xyz, threshold=0.20)
+    assert len(seg.planes) == 4
+    for p in seg.planes:
+        assert pitch_deg(p.normal) == pytest.approx(15.0, abs=0.5)
+    assert mislabelled_fraction(roof.labels, seg.labels) < 0.05
+
+
+def test_region_growing_gable():
+    roof = gable()
+    seg = segment_region_growing(roof.xyz, threshold=0.10)
+    assert len(seg.planes) == 2
+    assert seg.coverage > 0.99
+    assert mislabelled_fraction(roof.labels, seg.labels) < 0.01
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_region_growing_hip(seed):
+    roof = hip(seed=seed)
+    seg = segment_region_growing(roof.xyz, threshold=0.10)
+    assert len(seg.planes) == 4
+    assert mislabelled_fraction(roof.labels, seg.labels) < 0.025
+
+
+def test_ridge_band_left_by_growing_is_absorbed():
+    roof = hip()
+    n, var, _ = estimate_normals(roof.xyz, 0.5)
+    grown = region_grow(roof.xyz, n, var, threshold=0.10)
+    final = segment_region_growing(roof.xyz, threshold=0.10)
+    assert grown.coverage < 0.90  # blended normals along ridges and hips don't join (88.5%)
+    # 98.8%: absorption needs a labelled neighbour, so a few sparse points at the eave
+    # corners whose only neighbours are also unassigned stay out.
+    assert final.coverage > 0.98
