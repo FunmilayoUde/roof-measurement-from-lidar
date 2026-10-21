@@ -306,3 +306,37 @@ How it got there (each step measured on the same 20-seed set, median facet area 
 
 Remaining: 2 of 40 gable facets get an "other" side where missing points dent a corner (one rake
 4.9 m short). The snap angle (10°) and artefact length (2 m) could be swept on real houses.
+
+Later changes, rerun on the same 20-seed set:
+- Outer lines placed at the k-th outermost point plus its expected gap k / (density × side length),
+  with k chosen so that gap is 3 cm (so up to k−1 stray points beyond the edge are ignored).
+  Median facet area error: gable −0.08%, hip +0.04%, cross-gable −0.07%. Median length error for
+  every edge type ≤ 2 cm. Fallbacks 0; "other" sides: 2 (gable), 0, 0.
+- If a polygon fails to close: drop the shortest crooked outer piece and retry (up to 4 times).
+- Reject corners more than 2 m outside the traced outline (a spike). Good corners: up to 1.16 m
+  on 200 synthetic facets, 1.44 m on the real houses; the delft_03 spike was 6.02 m.
+
+### Real houses
+
+Source: `scripts/stage3_topology.py` (RANSAC 0.12 m / 1 m², seed 0). "Fallback" facets keep the
+traced outline (area from the outline, sides typed "other"). Lengths are totals; shared internal
+edges counted once (average of the two facets' sides).
+
+| house | facets | fallbacks | roof area m² polygons / hulls | ridge | hip | break | eave | rake | perimeter | other |
+|---|---|---|---|---|---|---|---|---|---|---|
+| delft_02 | 2 | 0 | 93.5 / 94.5 | | | | | | 55.5 | |
+| delft_03 | 5 | 2 | 164.6 / 171.0 | 12.4 | | 2.3 | 24.9 | 17.7 | 24.3 | 19.5 |
+| delft_05 | 4 | 2 | 92.8 / 102.9 | 7.4 | | | 14.7 | 23.1 | | 21.0 |
+| delft_01 | 8 | 2 | 251.9 / 257.4 | | 12.3 | 23.5 | 39.7 | 2.4 | 40.7 | 35.2 |
+
+- delft_03's gable: north half ridge 12.67, eave 12.67, rakes 4.45 / 4.40 m, 56.1 m² at 42.7°;
+  south half ridge 12.22, eave 12.22, rakes 4.39 / 4.43 m, 53.9 m² at 44.1°. The four rakes agree
+  within 6 cm. The shared ridge comes out 0.45 m different from each side: each facet ends it at
+  its own rake corners. Needs reconciling into one edge.
+- delft_03's flat extension reaches ~0.5 m under the gable's eave in plan. Probably real (the flat
+  roof continues under the overhang and is partly seen at an angle), so plan areas overlap there.
+- delft_01's mansard sides: eaves 11.3–12.0 m, hips ~4.0 m, breaks where they meet the flat top.
+- Fallbacks are the small facets (2.9–5.0 m²: delft_03's end structure, delft_05's corner pieces)
+  and delft_01's hump area and its 3.2 m² piece.
+- delft_05's NW slope has two ridge sides (4.65 and 3.69 m), with the SE slope and a SE corner
+  piece facing 18° apart: the twisting SE side from stage 2.

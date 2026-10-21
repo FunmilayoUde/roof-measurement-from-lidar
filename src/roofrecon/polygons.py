@@ -46,6 +46,7 @@ class FacetPolygon:
     vertices: np.ndarray  # (K, 3), in order, not repeated at the end
     sides: list[Side] = field(default_factory=list)
     fallback: bool = False  # True if line intersections failed and the traced outline was used
+    fallback_reason: str | None = None
 
     @property
     def area(self) -> float:
@@ -93,25 +94,31 @@ def _fit_outer_line(pts: np.ndarray, snap_deg: float):
     return c, d
 
 
-def _push_to_edge(line, uv: np.ndarray, centre: np.ndarray, run_pts: np.ndarray, rank: int = 2):
-    """Move an outer line outward to the facet's outermost points along it.
+def _push_to_edge(line, uv: np.ndarray, centre: np.ndarray, run_pts: np.ndarray, density: float,
+                  inset: float = 0.03, min_rank: int = 2):
+    """Move an outer line outward to where the facet's points end along it.
 
-    The line was fitted through the outline's vertices, which are boundary points: they sit
-    inside the true edge by a few cm, since random samples rarely land right on it (on
-    synthetic gables, area read 2.7% low). Among the facet's points alongside this side,
-    the `rank`-th farthest out is a near-unbiased estimate of the edge; using the 2nd
-    rather than the 1st keeps a single stray point from pushing the edge out.
+    The line was fitted through the outline's vertices, which sit inside the true edge
+    (random samples rarely land right on it; on synthetic gables area read 2.7% low).
+    For points at density `density` (per m² of facet) alongside a side of length L, the
+    k-th outermost lies on average k / (density * L) inside the edge. Taking k so that
+    gap is `inset` (3 cm), then adding the gap back, estimates the edge while ignoring up
+    to k-1 stray points beyond it. With k = 2 fixed, two stray flat-roof points seen under
+    a gable's eave on delft_03 dragged the flat roof's edge into the gable.
     """
     p, d = line
     normal = np.array([-d[1], d[0]])
     if (centre - p) @ normal > 0:  # make the normal point outward, away from the facet
         normal = -normal
     t = (run_pts - p) @ d
+    side_len = max(t.max() - t.min(), 1e-6)
     alongside = ((uv - p) @ d >= t.min()) & ((uv - p) @ d <= t.max())
     out = np.sort((uv[alongside] - p) @ normal)[::-1]
-    if len(out) < rank:
+    per_metre = density * side_len  # points per metre of depth from the edge
+    k = max(min_rank, int(np.ceil(inset * per_metre)))
+    if len(out) < k:
         return line
-    return p + out[rank - 1] * normal, d
+    return p + (out[k - 1] + k / per_metre) * normal, d
 
 
 def _outer_kind(line, facet_uv_mean, flat: bool) -> str:
@@ -138,6 +145,8 @@ def facet_polygon(
     snap_deg: float = 10.0,
     min_side: float = 0.8,
     trim: float = 0.4,
+    max_retries: int = 4,
+    max_corner_dist: float = 2.0,
 ) -> FacetPolygon:
     plane = seg.planes[facet]
     pts = xyz[seg.labels == facet]
@@ -213,71 +222,105 @@ def facet_polygon(
     # merge again, since dropping one can leave two collinear outer runs side by side.
     merged = _drop_short_runs(merged, min_side, snap_deg)
 
-    # A line per run. Consecutive runs whose lines come out parallel can't make a corner:
-    # two outer runs are merged and refitted; an outer run beside a parallel internal one
-    # is dropped (the internal line is exact).
     centre = uv.mean(axis=0)
+    density = len(uv) / max(outline.area, 1e-6)  # points per m² of facet
 
     def line_of(r):
         if r["label"][0] == "internal":
             return r["label"][3]
         line = _fit_outer_line(_trim_ends(r["pts"], trim), snap_deg)
-        return _push_to_edge(line, uv, centre, r["pts"])
+        return _push_to_edge(line, uv, centre, r["pts"], density)
 
-    changed = True
-    while changed and len(merged) > 3:
-        changed = False
-        for i in range(len(merged)):
-            j = (i + 1) % len(merged)
-            if _intersect_2d(line_of(merged[i]), line_of(merged[j])) is not None:
-                continue
-            a_int, b_int = merged[i]["label"][0] == "internal", merged[j]["label"][0] == "internal"
-            if a_int and b_int:
-                continue  # two parallel internal lines: leave it to the fallback check
-            if not a_int and not b_int:
-                merged[i]["pts"] = np.vstack([merged[i]["pts"], merged[j]["pts"]])
-                merged.pop(j)
-            else:
-                merged.pop(j if a_int else i)
-            changed = True
+    # Close the polygon; if that fails, drop the shortest outer run and try again. Ragged
+    # short pieces at a messy end are what make lines cross or run parallel.
+    for _ in range(max_retries + 1):
+        poly2d, lines, used, reason = _close(merged, line_of, outline, max_corner_dist)
+        if reason is None:
+            merged = used
             break
+        outer = [i for i, r in enumerate(merged) if r["label"][0] == "outer"]
+        if len(merged) <= 3 or not outer:
+            break
+        # Drop crooked pieces before level or up-slope ones: those are likely a real eave or
+        # rake (on delft_03, dropping the shortest piece removed the real east rake).
+        crooked = [i for i in outer if not _is_snapped(merged[i]["pts"], snap_deg)]
+        merged.pop(min(crooked or outer, key=lambda i: _run_length(merged[i])))
+        merged = _merge_neighbours(merged, snap_deg)
+    if reason is not None:
+        verts = _to_3d(simple, plane)
+        sides = [Side("other", None, verts[i], verts[(i + 1) % len(verts)]) for i in range(len(verts))]
+        return FacetPolygon(facet, plane, verts, sides, fallback=True, fallback_reason=reason)
 
-    lines, kinds, neighbours = [], [], []
-    for r in merged:
-        line = line_of(r)
-        lines.append(line)
+    kinds, neighbours = [], []
+    for r, line in zip(merged, lines):
         if r["label"][0] == "internal":
             kinds.append(r["label"][1].kind)
             neighbours.append(r["label"][2])
         else:
-            kinds.append(_outer_kind(line, uv.mean(axis=0), flat))
+            kinds.append(_outer_kind(line, centre, flat))
             neighbours.append(None)
-
-    # Corners: intersection of each run's line with the next one's.
-    corners = []
-    ok = len(lines) >= 3
-    for i in range(len(lines)):
-        q = _intersect_2d(lines[i], lines[(i + 1) % len(lines)]) if ok else None
-        if q is None:
-            ok = False
-            break
-        corners.append(q)
-    if ok:
-        poly2d = np.array(corners)
-        candidate = Polygon(poly2d)
-        # Reject corner sets that went wild (self-intersecting, or far from the traced outline).
-        if not candidate.is_valid or abs(candidate.area - outline.area) > 0.5 * outline.area:
-            ok = False
-    if not ok:
-        poly2d = simple
-        verts = _to_3d(poly2d, plane)
-        sides = [Side("other", None, verts[i], verts[(i + 1) % len(verts)]) for i in range(len(verts))]
-        return FacetPolygon(facet, plane, verts, sides, fallback=True)
 
     verts = _to_3d(poly2d, plane)
     # Side i runs from corner i-1 to corner i (corner i ends run i).
     sides = [Side(kinds[i], neighbours[i], verts[i - 1], verts[i]) for i in range(len(lines))]
     return FacetPolygon(facet, plane, verts, sides)
+
+
+def _close(runs: list[dict], line_of, outline, max_corner_dist: float = 2.0):
+    """Corners from consecutive lines. Two consecutive parallel lines can't make a corner:
+    two outer runs are merged, an outer run beside an internal one is dropped (the internal
+    line is exact). Returns (corners, lines, runs used, None) or (None, None, None, reason)."""
+    runs = list(runs)
+    while len(runs) >= 3:
+        lines = [line_of(r) for r in runs]
+        bad = next((i for i in range(len(runs)) if _intersect_2d(lines[i], lines[(i + 1) % len(runs)]) is None), None)
+        if bad is None:
+            break
+        j = (bad + 1) % len(runs)
+        a_int, b_int = runs[bad]["label"][0] == "internal", runs[j]["label"][0] == "internal"
+        if a_int and b_int:
+            return None, None, None, "consecutive parallel internal sides"
+        if not a_int and not b_int:
+            runs[bad] = {"label": runs[bad]["label"], "pts": np.vstack([runs[bad]["pts"], runs[j]["pts"]])}
+            runs.pop(j)
+        else:
+            runs.pop(j if a_int else bad)
+    if len(runs) < 3:
+        return None, None, None, f"only {len(runs)} sides"
+    lines = [line_of(r) for r in runs]
+    corners = np.array([_intersect_2d(lines[i], lines[(i + 1) % len(lines)]) for i in range(len(lines))])
+    candidate = Polygon(corners)
+    if not candidate.is_valid:
+        return None, None, None, "self-intersecting"
+    if abs(candidate.area - outline.area) > 0.5 * outline.area:
+        return None, None, None, f"area {candidate.area:.1f} vs outline {outline.area:.1f}"
+    # A corner far from the traced outline is a spike: two lines meeting at a shallow angle
+    # well past the facet (delft_03: 6.0 m, after a messy end's pieces were dropped). Good
+    # corners can sit outside the outline too, where a facet narrows to a thin tip the points
+    # don't reach: up to 1.16 m on 200 synthetic facets and 1.44 m on the real houses. Hence 2 m.
+    far = max(outline.exterior.distance(shapely.points(c)) for c in corners if not outline.contains(shapely.points(c))) \
+        if any(not outline.contains(shapely.points(c)) for c in corners) else 0.0
+    if far > max_corner_dist:
+        return None, None, None, f"corner {far:.1f} m outside the outline"
+    return corners, lines, runs, None
+
+
+def _is_snapped(pts: np.ndarray, deg: float) -> bool:
+    d = _fit_outer_line(pts, 0.0)[1]
+    return max(abs(d[0]), abs(d[1])) > np.cos(np.radians(deg))
+
+
+def _merge_neighbours(runs: list[dict], deg: float) -> list[dict]:
+    merged = []
+    for r in runs:
+        if merged and _same_label(merged[-1], r, deg):
+            merged[-1] = {"label": merged[-1]["label"], "pts": np.vstack([merged[-1]["pts"], r["pts"][1:]])}
+            continue
+        merged.append(r)
+    if len(merged) > 1 and _same_label(merged[-1], merged[0], deg):
+        merged[0] = {"label": merged[0]["label"], "pts": np.vstack([merged[-1]["pts"], merged[0]["pts"][1:]])}
+        merged.pop()
+    return merged
 
 
 def _majority_smooth(labels: np.ndarray, window: int) -> np.ndarray:
