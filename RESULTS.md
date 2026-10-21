@@ -68,3 +68,32 @@ facet membership given (no segmentation yet). Area = convex hull in the plane.
 
 Area always reads low: the outermost points sit inside the true edge. The bias is larger on
 triangular hip ends (more edge per m²).
+
+### Synthetic checks: sequential RANSAC
+
+Source: `roofrecon.segment`, 10 seeds per row, 33 pts/m², 3 cm vertical noise, min_points 30,
+connect_radius 0.3 m, 500 iterations. "raw" = `sequential_ransac`; "clean" = `segment_ransac`
+(reassign → merge coplanar → reassign). Mislabelled = points not in their segment's majority facet.
+
+| roof | threshold m | right plane count raw → clean | mislabelled % median raw → clean (clean max) | coverage % (clean, median) |
+|---|---|---|---|---|
+| gable 35° | 0.05 | 100 → 100 | 0.43 → 0.36 (0.53) | 95.2 |
+| gable 35° | 0.10 | 100 → 100 | 0.99 → 0.34 (0.53) | 99.5 |
+| gable 35° | 0.20 | 100 → 100 | 2.43 → 0.34 (0.53) | 99.6 |
+| gable 10° | 0.05 | 100 → 100 | 1.84 → 1.61 (1.92) | 90.8 |
+| gable 10° | 0.10 | 100 → 100 | 5.00 → 2.01 (2.33) | 99.6 |
+| gable 10° | 0.20 | 100 → 100 | 14.15 → 3.13 (3.56) | 99.7 |
+| hip 30° | 0.05 | 90 → 100 | 1.89 → 1.49 (1.92) | 93.5 |
+| hip 30° | 0.10 | 80 → 100 | 3.58 → 1.54 (1.95) | 99.4 |
+| hip 30° | 0.20 | 80 → 100 | 7.86 → 1.58 (1.95) | 99.2 |
+| hip 15° | 0.05 | 90 → 90 | 3.61 → 3.25 (3.94) | 91.5 |
+| hip 15° | 0.10 | 90 → 100 | 7.32 → 3.56 (4.25) | 99.4 |
+| hip 15° | 0.20 | 30 → 30 | 57.81 → 56.31 (62.99) | 91.1 |
+
+- 5 cm threshold: coverage 91–95%; perpendicular noise is 3 cm × cos(pitch), so a few % of
+  points fall outside ±5 cm.
+- Ridge stealing grows with threshold and shrinks with pitch (strip width ≈ threshold / sin(2·pitch)).
+- Hip 15° at 0.20 m fails: a near-horizontal slab through the ridge area outscores every real
+  facet. Clean-up can't fix a wrong first plane; needs per-point normals.
+- Raw hip errors at 0.10–0.20 m were extra planes: hip-end tips cut off by strips stolen
+  along both hips. Reassigning before merging reconnects them.
