@@ -21,11 +21,13 @@ uv run python scripts/stage4_report.py --house-id <name>                   # rep
 uv run python scripts/export_model.py --house-id <name>                   # model.obj / .ply, edges, preview
 uv run python scripts/view_model.py --house-id <name>                     # interactive 3D view over the points
 uv run python scripts/stage5_validate.py                                   # footprint checks, hand measurements
+uv run python scripts/make_report_data.py                                 # data for the write-up, docs/report/
 ```
 
 Finding houses: `scripts/scout_tiles.py` scores AHN sub-tiles around a place before downloading;
 `scripts/find_candidates.py` lists detached houses in a tile or bbox. Settings were chosen with
-`scripts/stage2_sweep.py`. Example output: `docs/examples/`.
+`scripts/stage2_sweep.py`. Example output: `docs/examples/`. Project write-up: `docs/report/index.html` (serve the folder
+locally, e.g. `python -m http.server -d docs/report`; it loads `report_data.json`).
 
 ## Layout
 

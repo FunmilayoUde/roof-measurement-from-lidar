@@ -1,0 +1,930 @@
+<title>Measuring Roofs from AHN LiDAR</title>
+<meta charset="utf-8">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,600;1,7..72,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column (~66ch) on a survey-sheet ground; figures break out wider; a contents rail on wide screens. */
+:root {
+  --bg: #fafbf9;
+  --panel: #f0f2ee;
+  --ink: #16201c;
+  --ink-2: #47524d;
+  --muted: #6e7873;
+  --rule: #d8ddd8;
+  --accent: #1c5cab;
+  --c1: #2a78d6; --c2: #eb6834; --c3: #1baf7a; --c4: #eda100;
+  --c5: #e87ba4; --c6: #008300; --c7: #6250d6; --c8: #e34948;
+  --none: #a7afab;
+  --seq-lo: #86b6ef; --seq-hi: #0d366b;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Literata", Georgia, "Times New Roman", serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --col: 42rem;
+  --wide: 68rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #181a19; --panel: #212423; --ink: #e8ebe8; --ink-2: #bcc3bf; --muted: #8f9893; --rule: #343836;
+    --accent: #86b6ef;
+    --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+    --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+    --none: #5c6360; --seq-lo: #184f95; --seq-hi: #b7d3f6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #181a19; --panel: #212423; --ink: #e8ebe8; --ink-2: #bcc3bf; --muted: #8f9893; --rule: #343836;
+  --accent: #86b6ef;
+  --c1: #3987e5; --c2: #d95926; --c3: #199e70; --c4: #c98500;
+  --c5: #d55181; --c6: #008300; --c7: #9085e9; --c8: #e66767;
+  --none: #5c6360; --seq-lo: #184f95; --seq-hi: #b7d3f6;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 400 1.0625rem/1.65 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.page { max-width: var(--wide); margin: 0 auto; padding-block: 3rem 5rem; display: grid; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 1180px) {
+  .page { grid-template-columns: 11rem minmax(0, 1fr); column-gap: 3rem; max-width: calc(var(--wide) + 14rem); }
+  .toc { display: block !important; }
+}
+.toc { display: none; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 2rem); align-self: start; font: 500 0.8rem/1.4 var(--display); }
+.toc ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.55rem; counter-reset: s; }
+.toc a { color: var(--muted); text-decoration: none; }
+.toc a:hover, .toc a:focus-visible { color: var(--ink); }
+.toc .n { font-family: var(--mono); font-size: 0.72rem; color: var(--muted); display: inline-block; width: 1.6rem; }
+main { min-width: 0; }
+main > * { max-width: var(--col); }
+main > .wide { max-width: var(--wide); }
+
+h1, h2, h3 { font-family: var(--display); font-weight: 700; text-wrap: balance; line-height: 1.12; letter-spacing: -0.01em; }
+h1 { font-size: clamp(2.2rem, 5.5vw, 3.6rem); margin: 0.4rem 0 1rem; }
+h2 { font-size: 1.75rem; margin: 4rem 0 1rem; padding-top: 1.25rem; border-top: 1px solid var(--rule); display: flex; gap: 0.75rem; align-items: baseline; }
+h2 .n { font-family: var(--mono); font-weight: 400; font-size: 0.95rem; color: var(--muted); }
+h3 { font-size: 1.2rem; margin: 2.2rem 0 0.6rem; }
+p { margin: 0 0 1rem; }
+a { color: var(--accent); }
+strong { font-weight: 600; }
+code, .mono { font-family: var(--mono); font-size: 0.86em; }
+code { background: var(--panel); padding: 0.08em 0.3em; border-radius: 3px; }
+.eyebrow { font: 600 0.75rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.lede { font-size: 1.22rem; line-height: 1.55; color: var(--ink-2); }
+.byline { font: 400 0.85rem/1.5 var(--mono); color: var(--muted); }
+ul, ol { padding-left: 1.3rem; margin: 0 0 1rem; }
+li { margin-bottom: 0.35rem; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); margin: 2rem 0; }
+.stat { background: var(--bg); padding: 1rem 1.1rem; display: grid; gap: 0.3rem; align-content: start; }
+.stat b { font: 700 1.9rem/1 var(--display); font-variant-numeric: tabular-nums; }
+.stat span { font-size: 0.86rem; line-height: 1.4; color: var(--ink-2); }
+
+figure { margin: 2rem 0 2.25rem; }
+figcaption { font-size: 0.9rem; line-height: 1.5; color: var(--ink-2); margin-top: 0.7rem; max-width: var(--col); }
+figcaption b { font-family: var(--display); color: var(--ink); }
+.panels { display: grid; gap: 1.25rem; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); }
+.panel-title { font: 600 0.78rem/1.3 var(--mono); color: var(--muted); margin-bottom: 0.4rem; letter-spacing: 0.02em; }
+canvas.plot { width: 100%; display: block; }
+svg { display: block; max-width: 100%; height: auto; overflow: visible; }
+svg text { font-family: var(--mono); font-size: 11px; fill: var(--ink-2); }
+svg .axis line, svg .axis path { stroke: var(--rule); }
+svg .grid { stroke: var(--rule); stroke-width: 1; }
+svg .title { font-family: var(--display); font-size: 13px; fill: var(--ink); font-weight: 600; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; font: 400 0.78rem/1.3 var(--mono); color: var(--ink-2); margin-top: 0.6rem; }
+.legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 0.35rem; }
+.legend i.dot { width: 9px; height: 9px; border-radius: 50%; }
+.scroll-x { overflow-x: auto; }
+
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 0.45rem 0.7rem 0.45rem 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font: 600 0.74rem/1.3 var(--mono); color: var(--muted); letter-spacing: 0.03em; text-transform: uppercase; }
+td.num, th.num { text-align: right; font-family: var(--mono); font-size: 0.84rem; }
+td .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 0.4rem; vertical-align: -1px; }
+.pill { display: inline-block; font: 600 0.7rem/1 var(--mono); padding: 0.25rem 0.45rem; border-radius: 99px; border: 1px solid var(--rule); color: var(--ink-2); }
+.pill.low { border-color: var(--c2); color: var(--ink); }
+
+.note { border-left: 3px solid var(--accent); background: var(--panel); padding: 0.9rem 1.1rem; margin: 1.5rem 0; font-size: 0.97rem; }
+.note p:last-child { margin: 0; }
+.pending { border: 1px dashed var(--muted); padding: 1.1rem 1.25rem; margin: 1.5rem 0; }
+.pending .eyebrow { color: var(--c2); }
+
+.fixes { display: grid; gap: 0; border-top: 1px solid var(--rule); }
+.fix { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.2rem 1.5rem; padding: 0.85rem 0; border-bottom: 1px solid var(--rule); font-size: 0.95rem; }
+@media (min-width: 720px) { .fix { grid-template-columns: 12rem minmax(0, 1fr) minmax(0, 1fr); } }
+.fix .what { font: 600 0.92rem/1.35 var(--display); }
+.fix .lab { font: 600 0.68rem/1 var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 0.25rem; }
+
+/* 3D viewer */
+.viewer .stage { position: relative; }
+.viewer { border: 1px solid var(--rule); background: var(--panel); }
+.viewer canvas { display: block; width: 100%; height: clamp(320px, 56vw, 560px); touch-action: none; cursor: grab; }
+.viewer canvas:active { cursor: grabbing; }
+.controls { display: flex; flex-wrap: wrap; gap: 0.5rem 1.25rem; align-items: center; padding: 0.7rem 0.8rem; border-bottom: 1px solid var(--rule); background: var(--bg); }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 6px; overflow: hidden; }
+.seg button { font: 500 0.78rem/1 var(--mono); padding: 0.5rem 0.65rem; border: 0; background: transparent; color: var(--ink-2); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.seg button:focus-visible, .chk input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.chk { font: 400 0.78rem/1 var(--mono); color: var(--ink-2); display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; }
+.hud { position: absolute; left: 0.75rem; bottom: 0.75rem; right: 0.75rem; pointer-events: none; display: flex; justify-content: space-between; gap: 1rem; align-items: flex-end; flex-wrap: wrap; }
+.hud .info { background: var(--bg); border: 1px solid var(--rule); padding: 0.55rem 0.75rem; font: 400 0.78rem/1.45 var(--mono); color: var(--ink-2); min-width: 0; max-width: 22rem; }
+.hud .info b { color: var(--ink); font-family: var(--display); font-size: 0.9rem; }
+.hud .hint { font: 400 0.72rem/1 var(--mono); color: var(--muted); background: var(--bg); padding: 0.35rem 0.5rem; border: 1px solid var(--rule); }
+.viewer-foot { padding: 0.7rem 0.8rem; border-top: 1px solid var(--rule); background: var(--bg); }
+
+.tip { position: fixed; pointer-events: none; z-index: 20; background: var(--ink); color: var(--bg); font: 400 0.75rem/1.4 var(--mono); padding: 0.4rem 0.55rem; border-radius: 4px; max-width: 16rem; }
+.formula { font-family: var(--mono); font-size: 0.92rem; background: var(--panel); padding: 0.8rem 1rem; overflow-x: auto; margin: 1rem 0 1.25rem; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="page">
+<nav class="toc" aria-label="Contents">
+  <ol>
+    <li><a href="#problem"><span class="n">01</span>Problem</a></li>
+    <li><a href="#data"><span class="n">02</span>Data</a></li>
+    <li><a href="#isolate"><span class="n">03</span>Isolate</a></li>
+    <li><a href="#segment"><span class="n">04</span>Planes</a></li>
+    <li><a href="#topology"><span class="n">05</span>Edges</a></li>
+    <li><a href="#report"><span class="n">06</span>Report</a></li>
+    <li><a href="#verify"><span class="n">07</span>Synthetic tests</a></li>
+    <li><a href="#validate"><span class="n">08</span>Validation</a></li>
+    <li><a href="#limits"><span class="n">09</span>Limitations</a></li>
+    <li><a href="#appendix"><span class="n">A</span>Settings</a></li>
+  </ol>
+</nav>
+
+<main>
+<p class="eyebrow">Point-cloud geometry · Netherlands AHN5 · Project write-up</p>
+<h1>Measuring Roofs from AHN LiDAR</h1>
+<p class="lede">An airborne laser scan records a house as a few thousand 3D points. This project turns those points into what a roofer would measure by hand: every roof surface with its pitch and true area, and every edge typed as ridge, hip, valley, eave or rake, with its length.</p>
+<p class="byline">Oluwatifunmilayo Ude · Python, numpy/scipy, Open3D, shapely · no cloud services</p>
+
+<div class="stats wide" id="stats"></div>
+
+<figure class="wide" id="fig-3d">
+  <div class="viewer">
+    <div class="controls">
+      <div class="seg" role="group" aria-label="House" id="house-btns"></div>
+      <div class="seg" role="group" aria-label="Point colour" id="color-btns">
+        <button type="button" data-c="height" aria-pressed="false">height</button>
+        <button type="button" data-c="plane" aria-pressed="true">plane</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="show-points" checked> laser points</label>
+      <label class="chk"><input type="checkbox" id="show-facets" checked> surfaces</label>
+      <label class="chk"><input type="checkbox" id="show-edges" checked> edges</label>
+    </div>
+    <div class="stage">
+      <canvas id="three" aria-label="Interactive 3D roof model"></canvas>
+      <div class="hud">
+        <div class="info" id="hud-info"></div>
+        <div class="hint">drag to turn · scroll or pinch to zoom · hover a surface</div>
+      </div>
+    </div>
+    <div class="viewer-foot"><div class="legend" id="edge-legend"></div></div>
+  </div>
+  <figcaption><b>Figure 1.</b> The output for four houses in Delft. Each coloured surface is a roof plane found in the laser points and closed into a polygon; the lines are its edges, coloured by type. Turn on "height" to see the raw points as the scanner recorded them. Hovering a surface shows the numbers the report gives for it.</figcaption>
+</figure>
+
+<h2 id="problem"><span class="n">01</span>The problem</h2>
+<p>Roof work is priced from a few measurements: the area of each surface (which sets material), its pitch (which sets labour and what material is allowed), and the length of each kind of edge, because ridges, hips, valleys, eaves and rakes each take different flashing and trim. Today these come from a person on a ladder, a drone flight, or a contractor tracing an aerial photo.</p>
+<p>The Netherlands publishes a free, nationwide laser scan, the AHN, at roughly 30–50 points per square metre. The question for this project was whether those points alone can produce the same measurements, how accurately, and where they fail.</p>
+<p>The work was done in five stages, in order, with a measured number recorded at the end of each before moving on:</p>
+<ol>
+  <li><strong>Load and isolate</strong> one house from a 64-million-point tile.</li>
+  <li><strong>Find the planes</strong>: which points belong to which roof surface.</li>
+  <li><strong>Build the topology</strong>: where surfaces meet, what kind of edge each meeting is, and each surface's closed outline.</li>
+  <li><strong>Write the report</strong>: per-surface pitch and area, per-edge type and length, totals in m², ft² and roofing squares.</li>
+  <li><strong>Validate</strong> against estimates the pipeline didn't make, reported as an error distribution rather than a single mean.</li>
+</ol>
+<p>Settings were never picked by eye. Each one was swept over a range, and the chosen value is the one that sits in the middle of the range that works, with the tradeoffs on either side written down.</p>
+
+<h2 id="data"><span class="n">02</span>The data: what a laser scan is</h2>
+<p>An aircraft flies over the country with a laser that fires several hundred thousand short pulses per second at the ground, sweeping side to side. Each pulse bounces off whatever it hits and part of the light returns to a sensor beside the laser. The time between sending and receiving gives the distance: light travels about 30 cm per nanosecond, so a round trip of 6.67 microseconds means the surface was 1,000 m away.</p>
+<p>Distance alone isn't a position. The aircraft also carries satellite positioning (GNSS) for where the scanner was, and an inertial unit (IMU) for which way it was pointing, both recorded hundreds of times a second. Scanner position plus pulse direction plus distance gives one 3D point. Repeat this across the country and you get a point cloud.</p>
+
+<figure>
+  <svg id="lidar-diagram" viewBox="0 0 640 300" style="width:100%" role="img" aria-label="Diagram of airborne laser scanning"></svg>
+  <figcaption><b>Figure 2.</b> How one point is made. The scanner's position (GNSS) and orientation (IMU) are known; the pulse's travel time gives the range. Along a sloped roof the pulses land on a grid that is regular in plan, so density is quoted per m² of ground, not per m² of roof.</figcaption>
+</figure>
+
+<p>That last point matters later. A 45° roof surface covering 40 m² of ground has 56 m² of actual surface, but it receives the same number of points as 40 m² of flat ground. Points per m² of <em>roof</em> drop as the roof gets steeper, and any method that thinks in point counts has to account for that.</p>
+<p>The AHN also classifies every point: ground, building, vegetation, water and so on. This project used <strong>AHN5 (2023)</strong>, tile <code>(withheld)</code> in Delft, and kept class 6, <em>building</em>. Building outlines came from the BAG, the Dutch register of addresses and buildings, so each house could be cut out by its official footprint.</p>
+
+<h2 id="isolate"><span class="n">03</span>Stage 1: isolating one house</h2>
+<p>The tile holds 64.8 million points. A filter over the BAG found the houses worth testing on: 700 buildings on the tile, of which 5 were single-dwelling residential, 70–300 m² in plan, and at least 3 m from any other building, so that their points wouldn't mix with a neighbour's.</p>
+<p>Each house was cut out by its footprint plus a buffer. The buffer is needed because the footprint traces the <em>walls</em>, and the roof hangs past the walls by the width of the eaves. The buffer's size was measured, not guessed: grow it in steps and count the building points it captures. Once the eaves are inside, the count stops rising.</p>
+
+<figure class="wide">
+  <div class="panels">
+    <div><div class="panel-title">delft_03 in plan, coloured by height, BAG footprint in outline</div><canvas class="plot" id="plan-height"></canvas>
+      <div class="legend" id="height-legend"></div></div>
+    <div><div class="panel-title">building points captured as the buffer grows</div><svg id="buffer-chart"></svg>
+      <div class="legend" id="buffer-legend"></div></div>
+  </div>
+  <figcaption><b>Figure 3.</b> Left: the isolated house. The tall gable sits to the north, a flat extension to the south, and a small lean-to on the east end. Points spill past the footprint on the gable's long sides, where the eaves overhang. Right: four houses level off by 0.5–0.75 m of buffer, so 1.0 m captures every eave with margin. delft_04 never levels off. Its building points carry on past the outline into a structure the BAG doesn't record, so it was excluded rather than measured wrongly.</figcaption>
+</figure>
+
+<p>Two numbers per house carried into later stages: density and spacing. Density was measured only inside the walls, since the empty part of the buffer would otherwise dilute it. It came out at 31.6 to 49.5 points per m², with a median spacing between neighbouring points of 7–9 cm. That spacing sets the scale of everything that follows: no edge can be located much better than a few centimetres, and no surface smaller than about 1 m² has enough points to be trusted.</p>
+
+<div class="scroll-x"><table id="house-table"></table></div>
+
+<p>Coordinates were also shifted so the house sits near (0, 0). Dutch map coordinates run to about 450,000 m, and a 32-bit float, which many 3D tools use, can only resolve about 3 cm at that size. Every model and report keeps the shift alongside, so positions can be put back on the map.</p>
+
+<h2 id="segment"><span class="n">04</span>Stage 2: finding the roof planes</h2>
+<p>A roof surface is, to a good approximation, a flat plane. Stage 2 has to decide which points lie on which plane. Two standard methods were compared.</p>
+<p><strong>RANSAC</strong> (random sample consensus) guesses. Pick three points at random, which define a plane, and count how many other points lie within a small distance of it, the <em>threshold</em>. Repeat hundreds of times and keep the plane with the most supporters. Remove those points and repeat on what's left, until no plane has enough support. It needs no information beyond positions, and it's robust to stray points because they never collect support.</p>
+<p><strong>Region growing</strong> works locally. Estimate a direction for each point (its normal) from its neighbours, then start from a smooth spot and keep adding neighbours whose normal points the same way. It follows surfaces the way a flood fill follows a colour.</p>
+<p>Either method on its own leaves a mess at the edges, so both were followed by the same clean-up: give each point to the plane it's closest to, merge planes that are really the same surface, drop small detached fragments, and absorb leftover points into a neighbouring plane. The order of those steps turned out to matter (see the list of fixes in section 5).</p>
+
+<figure class="wide">
+  <div class="panels">
+    <div><div class="panel-title">delft_03 in plan, coloured by plane (RANSAC)</div><canvas class="plot" id="plan-plane"></canvas></div>
+    <div><div class="panel-title">cross-section across the ridge, true scale, with each plane's ±0.12 m band</div><canvas class="plot" id="section"></canvas></div>
+  </div>
+  <div class="legend" id="plane-legend"></div>
+  <figcaption><b>Figure 4.</b> RANSAC's five planes on delft_03 (97% of points assigned; grey points are unassigned). The cross-section cuts across the dashed line on the left. The bands show what "threshold" means: a point joins a plane if it lies within 0.12 m of it, measured square to the plane. The band looks thicker on the steep slopes because, seen vertically, a 0.12 m band on a 43° plane is 0.12 / cos 43° ≈ 0.16 m tall.</figcaption>
+</figure>
+
+<h3>Choosing the settings</h3>
+<p>Before running stage 2 on real houses, the expected number of planes for each was written down from the stage 1 pictures alone. Two houses were unambiguous enough to serve as references: delft_02 is two flat roofs, so exactly 2 planes; delft_03 is a gable, a flat extension and a lean-to on one end, which the data showed as exactly 5 surfaces, with the two gable halves within 5% of each other in area. A setting passes only if it gets both houses right.</p>
+<p>Each setting was then swept with the others held fixed, 172 runs in all. RANSAC also has randomness, so the two settings that mattered most, threshold and minimum plane size, were re-run as a grid over 10 random seeds.</p>
+
+<figure class="wide">
+  <div class="panels">
+    <div><div class="panel-title">which settings pass both reference houses (one setting varied at a time, seed 0)</div><svg id="sweep-matrix"></svg></div>
+    <div><div class="panel-title">RANSAC, share of 10 seeds passing both references</div><svg id="joint-grid"></svg></div>
+  </div>
+  <figcaption><b>Figure 5.</b> Left: filled squares pass. Region growing has no setting that passes both houses: at every threshold delft_02 gets a third plane (a real 2.8 m² round object on the roof, but not a roof surface), and the neighbourhood size and angle that suit delft_03 don't suit delft_02. Right: RANSAC passes on every seed across a broad region. The setting carried forward, <b>threshold 0.12 m and minimum plane size 1.0 m²</b> (outlined), sits in the middle of it, so small changes in either direction don't break it. The single-seed sweep had made a minimum size of 2.0 m² look safe; over ten seeds it mostly fails.</figcaption>
+</figure>
+
+<p>The tradeoffs are physical. A smaller threshold rejects points that are genuinely on the roof, because the scanner's own noise is about 3 cm; at 0.04 m a third of some roofs went unassigned. A larger threshold lets a plane steal points from its neighbour near the shared edge, and near the ridge of a low-pitched roof a single near-flat plane can swallow both slopes. The minimum size trades missed small surfaces (delft_03's 2.5 m² lean-to disappears at 3 m²) against fragments counted as surfaces (below 1 m²).</p>
+<div class="note"><p><strong>Why RANSAC won.</strong> Region growing has real strengths. On a synthetic shallow hip roof at a large threshold it found all four surfaces where RANSAC grabbed a flat slab across the ridge. But on real houses, every setting that fixed one reference broke the other. Since that synthetic failure hasn't appeared on a real house yet, RANSAC was carried forward, and region growing's normals are kept as an independent visual check.</p></div>
+
+<h2 id="topology"><span class="n">05</span>Stage 3: edges and outlines</h2>
+<p>Planes alone aren't a roof model. A plane goes on forever; a roof surface stops at its edges. Stage 3 finds those edges and closes each surface into a polygon.</p>
+<p><strong>Internal edges</strong> are where two surfaces meet, and they come from geometry rather than from the points. Two non-parallel planes always meet in a straight line, which can be computed exactly from their equations. The points only say <em>where along that line</em> the edge runs: the stretch where both surfaces have points close by. Where three planes meet, as at the end of a hip roof's ridge, the corner is the single point common to all three, again exact. On synthetic roofs these three-plane corners came out within about 1 cm.</p>
+<p><strong>The type</strong> of an internal edge depends on which way the two surfaces fall away from it. If both slope down and away, it's a ridge (or a hip when it runs diagonally down to a corner). If both slope up and away, water collects along it: a valley. If one is flat and the other sloped, it's a change of pitch, here called a break. The test looks at the points of each surface just beside the edge, because a surface with a notch in it can have its centre on the wrong side of its own edge.</p>
+
+<figure class="wide">
+  <div class="panels">
+    <div><div class="panel-title">edge types on an L-shaped roof, in plan</div><svg id="types-diagram" viewBox="0 -6 360 350" style="max-width:440px;width:100%"></svg></div>
+    <div><div class="panel-title">delft_03 as reported: surfaces, edge types and lengths</div><svg id="plan-edges"></svg></div>
+  </div>
+  <div class="legend" id="type-legend"></div>
+  <figcaption><b>Figure 6.</b> Left: a hipped main roof with a gable wing. Ridges and hips are where surfaces fall away from each other; valleys, where they fall towards each other; eaves are level outer edges, at the bottom of a slope; rakes run up the slope at a gable end. Right: the same vocabulary applied to delft_03. The four rakes of its gable agree to within 6 cm. The two dashed surfaces are too small or too irregular to close from lines, so they keep their traced outline and are marked low confidence.</figcaption>
+</figure>
+
+<p><strong>Outer edges</strong> are harder, because nothing meets them. The points simply stop. The method traces each surface's outline (an alpha shape: a "shrink-wrap" around the points that can follow concave corners), splits it into straight runs, and labels each run by what it touches: a neighbouring surface, or nothing. Runs that touch nothing become outer lines, snapped to level (an eave) or straight up the slope (a rake) when they're within 10° of it. Each surface's polygon is then the intersection of its internal and outer lines.</p>
+<p>One correction makes a measurable difference. The outermost laser point along an edge is never exactly on the edge: points are about 9 cm apart, so the last one sits on average part of a spacing inside. Placing the line through the outermost point made every surface read 1–3% small. The line is instead placed at a slightly inner point plus the gap expected for that density and edge length, which also ignores a few stray points beyond the edge. That took the median area error on synthetic roofs from about −1% to within ±0.1%.</p>
+
+<h3>What broke, and how it was fixed</h3>
+<p>Most of the work in stage 3 was finding failures. Each of these was found by a test or by a number that didn't add up, and each fix was kept only if every earlier test still passed.</p>
+<div class="fixes wide">
+  <div class="fix"><div class="what">Hip tips cut off</div><div><span class="lab">Symptom</span>A hip roof came out with 5 planes instead of 4: the triangular end's tip was a separate fragment.</div><div><span class="lab">Cause and fix</span>The neighbouring slopes had stolen a strip along both hips, cutting the tip off. Reassigning points to their nearest plane <em>before</em> merging reconnected it.</div></div>
+  <div class="fix"><div class="what">Valleys typed as breaks</div><div><span class="lab">Symptom</span>4 of 20 valleys on the synthetic T-shaped roof were classified wrongly.</div><div><span class="lab">Cause and fix</span>The side test used each surface's centre, and a notched surface has its centre on the far side of its own valley. It now uses points beside the edge.</div></div>
+  <div class="fix"><div class="what">An edge of zero length</div><div><span class="lab">Symptom</span>One run lost an edge entirely.</div><div><span class="lab">Cause and fix</span>Both its ends had snapped to the same three-plane corner. A corner may now fix only one end of an edge.</div></div>
+  <div class="fix"><div class="what">A 6 m spike</div><div><span class="lab">Symptom</span>A delft_03 polygon had a corner 6.02 m outside the points.</div><div><span class="lab">Cause and fix</span>Two nearly parallel lines met far away. Corners more than 2 m outside the traced outline are now rejected. Genuine corners reached 1.44 m at most on real houses.</div></div>
+  <div class="fix"><div class="what">24 m² counted twice</div><div><span class="lab">Symptom</span>delft_01's total was 10% higher than the footprint check predicted.</div><div><span class="lab">Cause and fix</span>Two traced pieces of its curved top lay inside the flat top's polygon at the same height. Overlaps between a traced piece and a closed surface within 0.5 m in height are now trimmed.</div></div>
+  <div class="fix"><div class="what">A ridge 2 m too long</div><div><span class="lab">Symptom</span>delft_05's ridge read 9.72 m.</div><div><span class="lab">Cause and fix</span>Each surface reports its own version of a shared edge. One version also ran along a corner piece, so averaging them was wrong. Versions more than 0.5 m apart now keep only their overlap: 7.60 m.</div></div>
+</div>
+
+<h2 id="report"><span class="n">06</span>Stage 4: the measurement report</h2>
+<p>The report is a JSON file per house. Each physical edge is listed once, even though two surfaces share it. Areas are true (sloped) areas, also given in ft² and roofing squares (one square is 100 ft²), and pitch is also given as rise per 12 units of run, as US roofers quote it. Each surface carries a confidence and an error bar taken from the synthetic tests in section 7.</p>
+
+<figure class="wide">
+  <div class="panel-title" id="facet-title">delft_03, surfaces</div>
+  <div class="scroll-x"><table id="facet-table"></table></div>
+</figure>
+
+<figure class="wide">
+  <div class="panel-title">all four houses, totals</div>
+  <div class="scroll-x"><table id="totals-table"></table></div>
+  <figcaption><b>Table.</b> "± p90" adds every surface's 90th-percentile error as if all erred in the same direction, so it's a conservative bound. "Unclassified" length belongs to traced, low-confidence surfaces, whose outlines aren't typed.</figcaption>
+</figure>
+
+<h2 id="verify"><span class="n">07</span>Verification on synthetic roofs</h2>
+<p>A roof generated in code has a known answer, so a method can be graded on it exactly. Gable, hip, T-shaped (cross-gable) and dormer roofs were generated at the real density (33 points/m²) with 3 cm of height noise, 20 random versions of each, and put through the full pipeline.</p>
+<p>The code has 106 automated tests. These include checks that each roof yields exactly the right number of edges of each type, that edge lengths match the true ones within 0.3 m, and that the 3D model's mesh area matches the report's.</p>
+
+<figure class="wide">
+  <svg id="size-chart"></svg>
+  <div class="legend" id="size-legend"></div>
+  <figcaption><b>Figure 7.</b> Area error of every synthetic surface against its true area: 279 surfaces from 80 roofs. Surfaces above 10 m² are measured to within about 1%. Below 10 m² (the dormer's 3.8 m² surfaces) the error is large, with a median of 23%, and 8 of them fail to close at all (hollow). The one large outlier at 11.8% is a run where RANSAC missed a dormer surface entirely and its points joined the main slope. The report uses these per-size 90th percentiles as each surface's error bar.</figcaption>
+</figure>
+
+<p>This chart is the reason the report gives an error distribution by surface size rather than one accuracy figure. The large surfaces, which hold most of the area, are measured well. The small ones are not, and a single average would hide that.</p>
+
+<h2 id="validate"><span class="n">08</span>Validation on real houses</h2>
+<p>Synthetic roofs are perfect planes with perfect edges. Real roofs have gutters, chimneys, sagging, moss and missing points. Two checks were set up that the pipeline can't grade itself on.</p>
+
+<h3>Check 1: footprint and pitch</h3>
+<p>If you know a house's footprint and its roof pitch, you know its roof area: a surface at pitch θ covering ground area A has true area A / cos θ. The footprint comes from the BAG, which the pipeline never uses for measuring. The textbook version of this check turned out to be wrong in two ways, and both were worth finding.</p>
+<div class="formula">A: footprint / cos(mean pitch) &nbsp;→&nbsp; B: footprint × mean(1 / cos pitch) &nbsp;→&nbsp; D: (footprint + overhang) × mean(1 / cos pitch)</div>
+<p><strong>The mean of a curve isn't the curve of the mean.</strong> 1/cos θ bends upward, so for a roof with mixed pitches, 1/cos of the average pitch is smaller than the average of 1/cos. On delft_03 (a 43° gable plus a flat extension) the first gives 1.142 and the second 1.252: a 9% difference from averaging alone. Estimate B averages correctly.</p>
+<p><strong>The footprint is the walls, not the roof.</strong> The roof extends past the walls by the eaves. Widening the footprint uniformly (C) overshoots by 6–13%, because gable ends and flat roofs barely overhang. Estimate D measures the overhang directly: the number of roof points outside the footprint divided by the point density gives the overhang's plan area.</p>
+
+<figure class="wide">
+  <svg id="footprint-chart"></svg>
+  <div class="legend" id="footprint-legend"></div>
+  <figcaption><b>Figure 8.</b> Each footprint estimate relative to the report's area. A understates mixed-pitch roofs; C overstates everything. D, the corrected estimate, is within +0.4% to +4.3% of every report. On delft_01 this check is what exposed the double-counted 24 m²: the report read 251.9 m² against D's 228.7 m².</figcaption>
+</figure>
+
+<div class="note"><p>This check uses the report's own pitches and its split between surfaces, so it tests <em>consistency</em>, not <em>correctness</em>. A pipeline that got every pitch wrong in the same way could still pass. That's why the second check exists.</p></div>
+
+<h3>Check 2: hand measurements</h3>
+<div class="pending" id="hand-box">
+  <p class="eyebrow">Pending</p>
+  <p id="hand-status"></p>
+  <p>The protocol: open each house's points in CloudCompare and pick two points per edge and per slope, twice each and independently, <em>before</em> looking at the report, so the answer can't pull the measurement towards it. Plan lengths can also be measured on the PDOK aerial photo, a different sensor on a different date. The comparison script then reports each kind of measurement as a distribution (median, spread, worst case), and the difference between a person's own repeats sets the smallest error the check can detect.</p>
+</div>
+
+<h2 id="limits"><span class="n">09</span>Limitations and next steps</h2>
+<ul>
+  <li><strong>Small surfaces.</strong> Dormers and other surfaces under 10 m² have a median area error of 23% and a 90th percentile of 32% on synthetic roofs. Three attempted fixes each helped the dormer and broke something else, and were backed out. A dedicated dormer model is the next step, designed around real dormers.</li>
+  <li><strong>Four houses, one tile.</strong> All the real results come from four houses in one part of Delft, and the settings were chosen on two of them. None of them has a valley or a dormer. A second area, Bilthoven, has been scouted with 222 detached candidates (160 of them L- or T-shaped), but its download service has been down.</li>
+  <li><strong>Curved roofs.</strong> delft_01's top isn't planar: it has two humps about 0.25 m high. A plane-based method slices it into strips. It is kept as a known hard case and its traced pieces are marked low confidence.</li>
+  <li><strong>No independent ground truth yet.</strong> The footprint check is consistency only. The hand measurements are the missing piece.</li>
+  <li><strong>Classification is trusted.</strong> Points the AHN labels as building are taken as the roof. An unlabelled chimney leaves a hole; a mislabelled shed would be measured.</li>
+</ul>
+
+<h2 id="appendix"><span class="n">A</span>Settings and why</h2>
+<div class="scroll-x wide"><table>
+  <thead><tr><th>Setting</th><th>Value</th><th>Why this value</th></tr></thead>
+  <tbody>
+    <tr><td>Crop buffer</td><td class="num">1.0 m</td><td>Every kept house's buffer sweep levels off by 0.75 m.</td></tr>
+    <tr><td>Plane method</td><td>RANSAC</td><td>The only method with settings that pass both reference houses.</td></tr>
+    <tr><td>RANSAC threshold</td><td class="num">0.12 m</td><td>Middle of the 0.10–0.15 m range where all 10 seeds pass; about 4× the scanner's 3 cm noise.</td></tr>
+    <tr><td>Minimum plane size</td><td class="num">1.0 m²</td><td>Middle of 0.75–1.5 m²; below that fragments become planes, above 3 m² a real 2.5 m² surface disappears.</td></tr>
+    <tr><td>Outline radius (alpha)</td><td class="num">0.75 m</td><td>One piece and no false holes from 0.35 m upward; a sweep from 0.35 to 0.75 m didn't change dormer errors.</td></tr>
+    <tr><td>Snap to level / up-slope</td><td class="num">10°</td><td>Outer runs within 10° of level or up-slope are eaves or rakes; real ones scattered by a few degrees.</td></tr>
+    <tr><td>Reject corner outside outline</td><td class="num">2.0 m</td><td>Genuine corners reach at most 1.16 m (synthetic) and 1.44 m (real); the spike was 6.02 m.</td></tr>
+    <tr><td>Shared-edge reconcile</td><td class="num">0.5 m</td><td>Versions closer than this are averaged; further apart, they describe different stretches.</td></tr>
+    <tr><td>Low-confidence surface</td><td class="num">&lt; 10 m²</td><td>No synthetic surface lies between 3.8 and 17.1 m², so the boundary is a choice within that gap.</td></tr>
+  </tbody>
+</table></div>
+<p style="margin-top:1.5rem">The code, tests and a log of every measured result are in the project repository. Every figure on this page is drawn from <code>report_data.json</code>, written by <code>scripts/make_report_data.py</code> from the stage outputs, so new houses or hand measurements update it with one command.</p>
+</main>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(() => {
+const $ = (s) => document.querySelector(s);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const PAL = () => [1, 2, 3, 4, 5, 6, 7, 8].map((i) => css('--c' + i));
+const TYPE_SLOT = { ridge: 1, hip: 2, valley: 3, eave: 4, rake: 5, break: 6, top: 7, perimeter: 8 };
+const typeColor = (t) => TYPE_SLOT[t] ? css('--c' + TYPE_SLOT[t]) : css('--muted');
+const facetColor = (i) => PAL()[i % 8];
+const fmt = (x, d = 1) => Number(x).toLocaleString('en-GB', { minimumFractionDigits: d, maximumFractionDigits: d });
+const NS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs = {}, parent) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function text(parent, x, y, s, attrs = {}) { const t = el('text', { x, y, ...attrs }, parent); t.textContent = s; return t; }
+function hexToRgb(h) { h = h.replace('#', ''); return [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16) / 255); }
+function lerpColor(a, b, t) { const A = hexToRgb(a), B = hexToRgb(b); return A.map((v, i) => v + (B[i] - v) * t); }
+const rgbStr = (c) => `rgb(${c.map((v) => Math.round(v * 255)).join(',')})`;
+
+const tip = $('#tip');
+function bindTip(node, html) {
+  node.addEventListener('pointerenter', () => { tip.innerHTML = html; tip.hidden = false; });
+  node.addEventListener('pointermove', (e) => { tip.style.left = Math.min(e.clientX + 12, innerWidth - 270) + 'px'; tip.style.top = (e.clientY + 14) + 'px'; });
+  node.addEventListener('pointerleave', () => { tip.hidden = true; });
+}
+function legend(target, items) {
+  target.innerHTML = items.map(([c, label, kind]) => `<span><i class="${kind || ''}" style="background:${c}"></i>${label}</span>`).join('');
+}
+
+let DATA;
+const renderers = [];
+function renderAll() { renderers.forEach((f) => f()); }
+
+fetch('report_data.json').then((r) => r.json()).then((d) => {
+  DATA = d;
+  DATA.byId = Object.fromEntries(d.houses.map((h) => [h.id, h]));
+  renderers.push(stats, lidarDiagram, planHeight, bufferChart, houseTable, planPlane, section, sweepMatrix, jointGrid,
+    typesDiagram, planEdges, facetTable, totalsTable, sizeChart, footprintChart, handStatus);
+  renderAll();
+  initViewer();
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+  const rerender = () => { renderAll(); viewerTheme && viewerTheme(); };
+  mq.addEventListener('change', rerender);
+  new MutationObserver(rerender).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  let w = innerWidth;
+  addEventListener('resize', () => { if (Math.abs(innerWidth - w) > 40) { w = innerWidth; renderAll(); } });
+}).catch((err) => {
+  $('#stats').innerHTML = `<div class="stat"><span>The figure data didn't load (${err.message}). The text below is complete; the figures need report_data.json beside this page.</span></div>`;
+});
+
+function stats() {
+  const hs = DATA.houses;
+  const v = DATA.validation;
+  const dev = hs.map((h) => v[h.id].relative_to_report.D_footprint_plus_overhang_mean_secant * 100);
+  const small = DATA.synthetic_area.filter((x) => x.true_m2 < 10).map((x) => Math.abs(x.error_pct)).sort((a, b) => a - b);
+  const big = DATA.synthetic_area.filter((x) => x.true_m2 >= 10).map((x) => Math.abs(x.error_pct)).sort((a, b) => a - b);
+  const q = (a, p) => a[Math.min(a.length - 1, Math.floor(p * (a.length - 1) + 0.5))];
+  $('#stats').innerHTML = [
+    [hs.length, `Delft houses measured end to end, ${hs.reduce((s, h) => s + h.points, 0).toLocaleString('en-GB')} laser points`],
+    [`${fmt(Math.min(...dev))}–${fmt(Math.max(...dev))}%`, 'gap between reported area and the corrected footprint estimate'],
+    [`≤ ${fmt(q(big, 0.9))}%`, 'area error (90th percentile) on synthetic surfaces over 10 m²'],
+    [`${fmt(q(small, 0.5), 0)}%`, 'median area error on surfaces under 10 m², the known weak spot'],
+  ].map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`).join('');
+}
+
+function lidarDiagram() {
+  const s = $('#lidar-diagram'); s.innerHTML = '';
+  const ink = css('--ink'), mut = css('--muted'), rule = css('--rule'), acc = css('--c1'), warm = css('--c2');
+  // aircraft
+  el('path', { d: 'M250 46 l70 0 l14 -6 l6 0 l-6 10 l-84 4 z', fill: ink }, s);
+  el('path', { d: 'M282 47 l-12 -16 l10 0 l20 16 z', fill: ink }, s);
+  text(s, 345, 34, 'GNSS: where the scanner is', { fill: mut });
+  text(s, 345, 50, 'IMU: which way it points', { fill: mut });
+  // ground and house
+  el('line', { x1: 20, y1: 270, x2: 620, y2: 270, stroke: rule, 'stroke-width': 2 }, s);
+  el('path', { d: 'M330 270 v-70 h140 v70', fill: 'none', stroke: mut, 'stroke-width': 1.5 }, s);
+  el('path', { d: 'M318 200 L400 140 L482 200', fill: 'none', stroke: ink, 'stroke-width': 2.5 }, s);
+  // swath
+  el('path', { d: 'M290 56 L80 270 M290 56 L560 270', stroke: rule, 'stroke-dasharray': '3 4', fill: 'none' }, s);
+  // pulses
+  const hits = [[120, 270], [175, 270], [230, 270], [285, 270], [336, 196], [358, 179], [380, 163], [402, 146], [424, 160], [446, 175], [468, 190], [510, 270]];
+  hits.forEach(([x, y], i) => {
+    el('line', { x1: 290, y1: 56, x2: x, y2: y, stroke: i === 6 ? warm : acc, 'stroke-width': i === 6 ? 2 : 0.8, opacity: i === 6 ? 1 : 0.55 }, s);
+    el('circle', { cx: x, cy: y, r: 4, fill: i === 6 ? warm : acc }, s);
+  });
+  text(s, 170, 150, 'range = c × t / 2', { fill: ink, 'font-size': 12 });
+  text(s, 170, 166, '1,000 m ≈ 6.67 µs round trip', { fill: mut });
+  text(s, 392, 128, 'one return = one 3D point', { fill: ink, 'text-anchor': 'middle' });
+  text(s, 40, 292, 'equal spacing in plan, ~9 cm apart on these houses', { fill: mut });
+}
+
+// ---- plan canvases
+function setupCanvas(cv, aspect) {
+  const w = cv.parentElement.clientWidth;
+  const dpr = devicePixelRatio || 1;
+  cv.width = w * dpr; cv.height = w * aspect * dpr;
+  cv.style.height = (w * aspect) + 'px';
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, w * aspect);
+  return [ctx, w, w * aspect];
+}
+function planTransform(h, w, H, pad = 16) {
+  const xs = h.xyz.map((p) => p[0]).concat(h.footprint.map((p) => p[0]));
+  const ys = h.xyz.map((p) => p[1]).concat(h.footprint.map((p) => p[1]));
+  const x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const k = Math.min((w - 2 * pad) / (x1 - x0), (H - 2 * pad) / (y1 - y0));
+  const ox = (w - k * (x1 - x0)) / 2, oy = (H - k * (y1 - y0)) / 2;
+  return { X: (x) => ox + (x - x0) * k, Y: (y) => H - oy - (y - y0) * k, k };
+}
+function scaleBar(ctx, T, w, H) {
+  const ink = css('--ink-2');
+  ctx.strokeStyle = ink; ctx.fillStyle = ink; ctx.lineWidth = 1.5;
+  const L = 5 * T.k, x = 14, y = H - 12;
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + L, y); ctx.moveTo(x, y - 4); ctx.lineTo(x, y + 0.5); ctx.moveTo(x + L, y - 4); ctx.lineTo(x + L, y + 0.5); ctx.stroke();
+  ctx.font = '11px ' + css('--mono'); ctx.fillText('5 m', x + L + 6, y + 4);
+}
+function sectionLine(h) {
+  const ridges = h.edges.filter((e) => e.type === 'ridge').sort((a, b) => b.length_m - a.length_m);
+  const e = ridges[0];
+  const m = [(e.p0[0] + e.p1[0]) / 2, (e.p0[1] + e.p1[1]) / 2];
+  let d = [e.p1[0] - e.p0[0], e.p1[1] - e.p0[1]]; const n = Math.hypot(...d); d = [d[0] / n, d[1] / n];
+  let u = [-d[1], d[0]]; if (u[1] < 0) u = [-u[0], -u[1]];  // runs south to north
+  return { m, d, u };
+}
+function planHeight() {
+  const h = DATA.byId.delft_03;
+  const [ctx, w, H] = setupCanvas($('#plan-height'), 0.95);
+  const T = planTransform(h, w, H);
+  const zs = h.xyz.map((p) => p[2]); const z0 = Math.min(...zs), z1 = Math.max(...zs);
+  const lo = css('--seq-lo'), hi = css('--seq-hi');
+  const order = h.xyz.map((p, i) => i).sort((a, b) => h.xyz[a][2] - h.xyz[b][2]);
+  for (const i of order) {
+    const p = h.xyz[i];
+    ctx.fillStyle = rgbStr(lerpColor(lo, hi, (p[2] - z0) / (z1 - z0)));
+    ctx.beginPath(); ctx.arc(T.X(p[0]), T.Y(p[1]), 1.7, 0, 7); ctx.fill();
+  }
+  ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1.5; ctx.setLineDash([]);
+  ctx.beginPath(); h.footprint.forEach((p, i) => i ? ctx.lineTo(T.X(p[0]), T.Y(p[1])) : ctx.moveTo(T.X(p[0]), T.Y(p[1]))); ctx.closePath(); ctx.stroke();
+  scaleBar(ctx, T, w, H);
+  const el2 = $('#height-legend');
+  el2.innerHTML = `<span><i style="width:90px;height:8px;background:linear-gradient(90deg,${lo},${hi})"></i>height ${fmt(z0)} → ${fmt(z1)} m above NAP</span><span><i style="background:${css('--ink')}"></i>BAG footprint (walls)</span>`;
+}
+function planPlane() {
+  const h = DATA.byId.delft_03;
+  const [ctx, w, H] = setupCanvas($('#plan-plane'), 0.95);
+  const T = planTransform(h, w, H);
+  const none = css('--none');
+  h.xyz.forEach((p, i) => {
+    const l = h.labels[i];
+    ctx.fillStyle = l < 0 ? none : facetColor(l);
+    ctx.beginPath(); ctx.arc(T.X(p[0]), T.Y(p[1]), 1.7, 0, 7); ctx.fill();
+  });
+  const S = sectionLine(h);
+  ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(T.X(S.m[0] - 9 * S.u[0]), T.Y(S.m[1] - 9 * S.u[1])); ctx.lineTo(T.X(S.m[0] + 6 * S.u[0]), T.Y(S.m[1] + 6 * S.u[1])); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = '600 12px ' + css('--mono'); ctx.fillStyle = css('--ink');
+  h.facets.forEach((f) => {
+    const pts = h.xyz.filter((p, i) => h.labels[i] === f.id);
+    const cx = pts.reduce((s, p) => s + p[0], 0) / pts.length, cy = pts.reduce((s, p) => s + p[1], 0) / pts.length;
+    ctx.fillText(String(f.id), T.X(cx) - 4, T.Y(cy) + 4);
+  });
+  scaleBar(ctx, T, w, H);
+  legend($('#plane-legend'), h.facets.map((f) => [facetColor(f.id), `${f.id}: ${f.pitch_deg}° ${f.facing || 'flat'}, ${f.points} pts`, 'dot']).concat([[none, 'unassigned', 'dot']]));
+}
+function planeOf(f) {
+  const v = f.vertices; let n = [0, 0, 0];
+  for (let i = 0; i < v.length; i++) {
+    const a = v[i], b = v[(i + 1) % v.length];
+    n[0] += (a[1] - b[1]) * (a[2] + b[2]); n[1] += (a[2] - b[2]) * (a[0] + b[0]); n[2] += (a[0] - b[0]) * (a[1] + b[1]);
+  }
+  const c = [0, 1, 2].map((k) => v.reduce((s, p) => s + p[k], 0) / v.length);
+  const L = Math.hypot(...n); n = n.map((x) => x / L);
+  return { n, c, zAt: (x, y) => c[2] - (n[0] * (x - c[0]) + n[1] * (y - c[1])) / n[2] };
+}
+function section() {
+  const h = DATA.byId.delft_03, S = sectionLine(h), half = 0.6;
+  const pts = [];
+  h.xyz.forEach((p, i) => {
+    const dx = p[0] - S.m[0], dy = p[1] - S.m[1];
+    if (Math.abs(dx * S.d[0] + dy * S.d[1]) <= half) pts.push([dx * S.u[0] + dy * S.u[1], p[2], h.labels[i]]);
+  });
+  const s0 = Math.min(...pts.map((p) => p[0])) - 0.3, s1 = Math.max(...pts.map((p) => p[0])) + 0.3;
+  const z0 = Math.min(...pts.map((p) => p[1])) - 0.6, z1 = Math.max(...pts.map((p) => p[1])) + 0.6;
+  const cv = $('#section');
+  const w = cv.parentElement.clientWidth, pad = 30;
+  const k = (w - 2 * pad) / (s1 - s0);
+  const [ctx, , H] = setupCanvas(cv, ((z1 - z0) * k + 2 * pad) / w);
+  const X = (s) => pad + (s - s0) * k, Y = (z) => H - pad - (z - z0) * k;
+  // bands
+  h.facets.forEach((f) => {
+    const mine = pts.filter((p) => p[2] === f.id); if (mine.length < 5) return;
+    const P = planeOf(f), a = Math.min(...mine.map((p) => p[0])), b = Math.max(...mine.map((p) => p[0]));
+    const zz = (s) => P.zAt(S.m[0] + s * S.u[0], S.m[1] + s * S.u[1]);
+    const t = 0.12 / Math.abs(P.n[2]);
+    const c = facetColor(f.id);
+    ctx.fillStyle = c; ctx.globalAlpha = 0.16;
+    ctx.beginPath(); ctx.moveTo(X(a), Y(zz(a) + t)); ctx.lineTo(X(b), Y(zz(b) + t)); ctx.lineTo(X(b), Y(zz(b) - t)); ctx.lineTo(X(a), Y(zz(a) - t)); ctx.closePath(); ctx.fill();
+    ctx.globalAlpha = 1; ctx.strokeStyle = c; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(X(a), Y(zz(a))); ctx.lineTo(X(b), Y(zz(b))); ctx.stroke();
+  });
+  const none = css('--none');
+  pts.forEach((p) => { ctx.fillStyle = p[2] < 0 ? none : facetColor(p[2]); ctx.beginPath(); ctx.arc(X(p[0]), Y(p[1]), 2, 0, 7); ctx.fill(); });
+  ctx.fillStyle = css('--ink-2'); ctx.font = '11px ' + css('--mono');
+  ctx.strokeStyle = css('--rule'); ctx.lineWidth = 1;
+  for (let z = Math.ceil(z0); z <= z1; z++) { ctx.beginPath(); ctx.moveTo(pad, Y(z)); ctx.lineTo(w - pad, Y(z)); ctx.stroke(); ctx.fillText(z + ' m', 0, Y(z) + 4); }
+  ctx.fillText('south', pad, H - 8); ctx.textAlign = 'right'; ctx.fillText('north', w - pad, H - 8); ctx.textAlign = 'left';
+}
+
+// ---- generic SVG chart frame
+function frame(svg, w, h, m) {
+  svg.innerHTML = ''; svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.style.width = '100%'; svg.style.maxWidth = w + 'px';
+  return { g: el('g', {}, svg), iw: w - m.l - m.r, ih: h - m.t - m.b, m };
+}
+function bufferChart() {
+  const svg = $('#buffer-chart');
+  const W = Math.max(320, svg.parentElement.clientWidth), Hh = W * 0.78;
+  const f = frame(svg, W, Hh, { l: 46, r: 70, t: 12, b: 36 });
+  const series = DATA.houses.map((h, i) => ({ id: h.id, c: facetColor(i), pts: h.buffer_sweep }))
+    .concat(DATA.excluded.map((h) => ({ id: h.id + ' (excluded)', c: css('--ink'), pts: h.buffer_sweep, dash: true })));
+  series.forEach((s) => { const b = s.pts[0][1]; s.rel = s.pts.map(([x, y]) => [x, y / b]); });
+  const xMax = 3, yMin = 1, yMax = Math.max(...series.flatMap((s) => s.rel.map((p) => p[1]))) * 1.02;
+  const X = (x) => f.m.l + x / xMax * f.iw, Y = (y) => f.m.t + f.ih - (y - yMin) / (yMax - yMin) * f.ih;
+  for (let y = 1; y <= yMax; y += 0.05) { el('line', { x1: f.m.l, x2: f.m.l + f.iw, y1: Y(y), y2: Y(y), class: 'grid' }, svg); text(svg, f.m.l - 6, Y(y) + 4, '×' + y.toFixed(2), { 'text-anchor': 'end' }); }
+  for (let x = 0; x <= 3; x += 0.5) text(svg, X(x), f.m.t + f.ih + 16, x + ' m', { 'text-anchor': 'middle' });
+  text(svg, f.m.l + f.iw / 2, Hh - 4, 'buffer around footprint', { 'text-anchor': 'middle' });
+  el('line', { x1: X(1), x2: X(1), y1: f.m.t, y2: f.m.t + f.ih, stroke: css('--muted'), 'stroke-dasharray': '2 3' }, svg);
+  text(svg, X(1) + 4, f.m.t + 10, 'chosen', { fill: css('--muted') });
+  series.forEach((s) => {
+    el('polyline', { points: s.rel.map(([x, y]) => `${X(x)},${Y(y)}`).join(' '), fill: 'none', stroke: s.c, 'stroke-width': 2, 'stroke-dasharray': s.dash ? '5 4' : '' }, svg);
+    s.pts.forEach(([x, y], j) => { const c = el('circle', { cx: X(x), cy: Y(s.rel[j][1]), r: 3.5, fill: s.c }, svg); bindTip(c, `${s.id}<br>buffer ${x} m: ${y.toLocaleString('en-GB')} points`); });
+  });
+  legend($('#buffer-legend'), series.map((s) => [s.c, s.id]));
+  // direct label the excluded one only
+  const last = series[series.length - 1]; const lp = last.rel[last.rel.length - 1];
+  text(svg, X(lp[0]) + 6, Y(lp[1]) + 4, 'delft_04', { fill: css('--ink') });
+}
+function houseTable() {
+  const v = DATA.validation;
+  $('#house-table').innerHTML = `<thead><tr><th>House</th><th>Roof</th><th class="num">Built</th><th class="num">Footprint m²</th><th class="num">Points</th><th class="num">Pts / m²</th><th class="num">Spacing cm</th></tr></thead><tbody>` +
+    DATA.houses.map((h) => `<tr><td class="mono">${h.id}</td><td>${h.roof}</td><td class="num">${h.built}</td><td class="num">${fmt(h.footprint_m2)}</td><td class="num">${h.points.toLocaleString('en-GB')}</td><td class="num">${fmt(h.density_pts_per_m2)}</td><td class="num">${fmt(h.nn_spacing_m * 100)}</td></tr>`).join('') + '</tbody>';
+}
+
+function sweepMatrix() {
+  const svg = $('#sweep-matrix');
+  const rows = [['ransac', 'threshold', 'RANSAC · threshold (m)'], ['ransac', 'min_area', 'RANSAC · min size (m²)'],
+    ['rg', 'threshold', 'Region growing · threshold (m)'], ['rg', 'min_area', 'Region growing · min size (m²)'],
+    ['rg', 'normal_radius', 'Region growing · normal radius (m)'], ['rg', 'angle', 'Region growing · angle (°)']];
+  const W = 460, rowH = 44;
+  const f = frame(svg, W, rows.length * rowH + 10, { l: 0, r: 0, t: 0, b: 0 });
+  const good = css('--c1'), bad = css('--rule');
+  rows.forEach(([m, s, label], r) => {
+    const sub = DATA.sweep.filter((x) => x.method === m && x.setting === s);
+    const vals = [...new Set(sub.map((x) => x.value))].sort((a, b) => a - b);
+    const y = r * rowH;
+    text(svg, 0, y + 13, label, { fill: css('--ink') });
+    vals.forEach((v, j) => {
+      const refs = sub.filter((x) => x.value === v && (x.house === 'delft_02' || x.house === 'delft_03'));
+      const ok = refs.length === 2 && refs.every((x) => x.reference_ok === 'True');
+      const x = j * 56;
+      const r2 = el('rect', { x, y: y + 20, width: 18, height: 18, rx: 3, fill: ok ? good : 'none', stroke: ok ? good : bad, 'stroke-width': 1.5 }, svg);
+      text(svg, x + 22, y + 33, String(v), {});
+      const why = refs.map((x) => `${x.house}: ${x.planes} planes ${x.reference_ok === 'True' ? '✓' : '✗'}`).join('<br>');
+      bindTip(r2, `${label.split(' · ')[0]}, ${s.replace('_', ' ')} ${v}<br>${why}`);
+    });
+  });
+}
+function jointGrid() {
+  const svg = $('#joint-grid');
+  const th = [...new Set(DATA.joint.map((x) => x.threshold))].sort((a, b) => a - b);
+  const ma = [...new Set(DATA.joint.map((x) => x.min_area))].sort((a, b) => a - b);
+  const cw = 66, ch = 40, l = 64, t = 26;
+  frame(svg, l + ma.length * cw + 10, t + th.length * ch + 40, { l, r: 0, t, b: 0 });
+  const lo = css('--bg'), hi = css('--c1');
+  ma.forEach((m, j) => text(svg, l + j * cw + cw / 2, t - 8, m + ' m²', { 'text-anchor': 'middle' }));
+  th.forEach((v, i) => text(svg, l - 8, t + i * ch + ch / 2 + 4, v.toFixed(2) + ' m', { 'text-anchor': 'end' }));
+  DATA.joint.forEach((x) => {
+    const i = th.indexOf(x.threshold), j = ma.indexOf(x.min_area);
+    const c = rgbStr(lerpColor(lo, hi, 0.1 + 0.9 * x.pass_fraction));
+    const r = el('rect', { x: l + j * cw + 1, y: t + i * ch + 1, width: cw - 2, height: ch - 2, rx: 3, fill: c }, svg);
+    text(svg, l + j * cw + cw / 2, t + i * ch + ch / 2 + 4, Math.round(x.pass_fraction * 10) + '/10', { 'text-anchor': 'middle', fill: x.pass_fraction > 0.55 ? '#ffffff' : css('--ink') });
+    bindTip(r, `threshold ${x.threshold} m, min size ${x.min_area} m²<br>${Math.round(x.pass_fraction * 10)} of 10 seeds pass both references`);
+    if (x.threshold === 0.12 && x.min_area === 1) el('rect', { x: l + j * cw - 1, y: t + i * ch - 1, width: cw + 2, height: ch + 2, rx: 4, fill: 'none', stroke: css('--ink'), 'stroke-width': 2.5 }, svg);
+  });
+  text(svg, l, t + th.length * ch + 24, 'rows: threshold · columns: minimum plane size', { fill: css('--muted') });
+}
+
+function typesDiagram() {
+  const s = $('#types-diagram'); s.innerHTML = '';
+  const k = 22, ox = 48, oy = 190;
+  const P = (x, y) => [ox + x * k, oy - y * k];
+  const line = (a, b, t, w = 3) => { const A = P(...a), B = P(...b); el('line', { x1: A[0], y1: A[1], x2: B[0], y2: B[1], stroke: typeColor(t), 'stroke-width': w, 'stroke-linecap': 'round' }, s); };
+  const lab = (x, y, t, anchor = 'middle') => { const A = P(x, y); text(s, A[0], A[1], t, { 'text-anchor': anchor, fill: css('--ink'), 'font-size': 11 }); };
+  el('path', { d: `M${P(0, 0)} L${P(5, 0)} L${P(5, -6)} L${P(9, -6)} L${P(9, 0)} L${P(12, 0)} L${P(12, 8)} L${P(0, 8)} Z`, fill: css('--panel'), stroke: 'none' }, s);
+  line([0, 8], [12, 8], 'eave'); line([0, 0], [0, 8], 'eave'); line([12, 0], [12, 8], 'eave');
+  line([0, 0], [5, 0], 'eave'); line([9, 0], [12, 0], 'eave');
+  line([5, 0], [5, -6], 'eave'); line([9, 0], [9, -6], 'eave');
+  line([5, -6], [9, -6], 'rake');
+  line([4, 4], [8, 4], 'ridge'); line([7, -6], [7, 2], 'ridge');
+  [[0, 0], [12, 0], [0, 8], [12, 8]].forEach((c) => line(c, c[0] ? [8, 4] : [4, 4], 'hip'));
+  line([5, 0], [7, 2], 'valley'); line([9, 0], [7, 2], 'valley');
+  lab(6, 4.4, 'ridge'); lab(2.4, 5.6, 'hip'); lab(6, 8.4, 'eave');
+  lab(4.8, 1.3, 'valley', 'end'); lab(7, -6.7, 'rake (a gable end, seen from above)');
+  lab(4.7, -3, 'eave', 'end'); lab(7.4, -3, 'ridge', 'start');
+}
+function planEdges() {
+  const h = DATA.byId.delft_03, svg = $('#plan-edges');
+  const W = Math.max(320, svg.parentElement.clientWidth), H = W * 0.95;
+  frame(svg, W, H, { l: 0, r: 0, t: 0, b: 0 });
+  const T = planTransform(h, W, H, 20);
+  const P = (p) => `${T.X(p[0])},${T.Y(p[1])}`;
+  h.facets.forEach((f) => {
+    if (f.area_m2 <= 0) return;
+    const low = f.outline !== 'plane and line intersections';
+    const poly = el('polygon', { points: f.vertices.map(P).join(' '), fill: facetColor(f.id), 'fill-opacity': 0.18, stroke: low ? css('--ink-2') : 'none', 'stroke-dasharray': low ? '4 3' : '', 'stroke-width': 1.5 }, svg);
+    bindTip(poly, `surface ${f.id}: ${f.pitch_deg}° ${f.facing || 'flat'}<br>${fmt(f.area_m2)} m², ${f.confidence} confidence`);
+  });
+  h.edges.forEach((e) => {
+    if (e.type === 'unclassified') return;
+    const ln = el('line', { x1: T.X(e.p0[0]), y1: T.Y(e.p0[1]), x2: T.X(e.p1[0]), y2: T.Y(e.p1[1]), stroke: typeColor(e.type), 'stroke-width': 3, 'stroke-linecap': 'round' }, svg);
+    const hit = el('line', { x1: T.X(e.p0[0]), y1: T.Y(e.p0[1]), x2: T.X(e.p1[0]), y2: T.Y(e.p1[1]), stroke: 'transparent', 'stroke-width': 14 }, svg);
+    bindTip(hit, `${e.type}, ${fmt(e.length_m, 2)} m`);
+    if (e.length_m > 4 && ['ridge', 'eave', 'rake'].includes(e.type)) {
+      const mx = (T.X(e.p0[0]) + T.X(e.p1[0])) / 2, my = (T.Y(e.p0[1]) + T.Y(e.p1[1])) / 2;
+      const tt = text(svg, mx, my - 6, fmt(e.length_m, 2) + ' m', { 'text-anchor': 'middle', fill: css('--ink'), 'font-size': 11 });
+      tt.setAttribute('paint-order', 'stroke'); tt.setAttribute('stroke', css('--bg')); tt.setAttribute('stroke-width', 4);
+    }
+  });
+  h.facets.forEach((f) => {
+    if (f.area_m2 <= 0) return;
+    const c = [0, 1].map((k) => f.vertices.reduce((s, p) => s + p[k], 0) / f.vertices.length);
+    if (f.area_m2 < 10) return;  // small surfaces: area in the tooltip, labels would collide
+    text(svg, T.X(c[0]), T.Y(c[1]), `${fmt(f.area_m2)} m²`, { 'text-anchor': 'middle', fill: css('--ink'), 'font-size': 12, 'font-weight': 600 });
+    text(svg, T.X(c[0]), T.Y(c[1]) + 15, `${f.pitch_deg}°`, { 'text-anchor': 'middle' });
+  });
+  const used = [...new Set(DATA.houses.flatMap((x) => x.edges.map((e) => e.type)))].filter((t) => t !== 'unclassified');
+  const order = ['ridge', 'hip', 'valley', 'eave', 'rake', 'break', 'top', 'perimeter'].filter((t) => used.includes(t) || ['valley', 'hip'].includes(t));
+  const names = { perimeter: 'perimeter (flat roof edge)', break: 'break (change of pitch)' };
+  legend($('#type-legend'), order.map((t) => [typeColor(t), names[t] || t]));
+}
+
+function facetTable() {
+  const h = DATA.byId.delft_03;
+  const rows = h.facets.filter((f) => f.area_m2 > 0).sort((a, b) => b.area_m2 - a.area_m2);
+  $('#facet-table').innerHTML = `<thead><tr><th>Surface</th><th class="num">Pitch</th><th class="num">Rise / 12</th><th>Facing</th><th class="num">Area m²</th><th class="num">Plan m²</th><th class="num">± p90</th><th>Confidence</th><th>Outline</th></tr></thead><tbody>` +
+    rows.map((f) => `<tr><td><span class="sw" style="background:${facetColor(f.id)}"></span>${f.id}</td><td class="num">${f.pitch_deg}°</td><td class="num">${f.pitch_rise_per_12}</td><td>${f.facing || 'flat'}</td><td class="num">${fmt(f.area_m2, 2)}</td><td class="num">${fmt(f.plan_area_m2, 2)}</td><td class="num">${f.area_error_p90_pct}%</td><td><span class="pill ${f.confidence === 'low' ? 'low' : ''}">${f.confidence}</span></td><td>${f.outline === 'plane and line intersections' ? 'closed from lines' : 'traced'}</td></tr>`).join('') + '</tbody>';
+}
+function totalsTable() {
+  const types = ['ridge', 'hip', 'break', 'eave', 'rake', 'perimeter', 'unclassified'];
+  $('#totals-table').innerHTML = `<thead><tr><th>House</th><th class="num">Surfaces</th><th class="num">Area m²</th><th class="num">± p90</th><th class="num">Squares</th>${types.map((t) => `<th class="num">${t} m</th>`).join('')}</tr></thead><tbody>` +
+    DATA.houses.map((h) => { const t = h.totals; return `<tr><td class="mono">${h.id}</td><td class="num">${t.facets}</td><td class="num">${fmt(t.roof_area_m2)}</td><td class="num">${fmt(t.roof_area_p90_error_m2)}</td><td class="num">${fmt(t.squares, 2)}</td>${types.map((k) => `<td class="num">${t.length_m_by_type[k] != null ? fmt(t.length_m_by_type[k], 2) : '–'}</td>`).join('')}</tr>`; }).join('') + '</tbody>';
+}
+
+function sizeChart() {
+  const svg = $('#size-chart');
+  const W = Math.max(340, svg.parentElement.clientWidth), H = Math.min(420, W * 0.55);
+  const f = frame(svg, W, H, { l: 48, r: 16, t: 16, b: 40 });
+  const d = DATA.synthetic_area;
+  const xMax = Math.ceil(Math.max(...d.map((x) => x.true_m2)) / 10) * 10, yMax = 45;
+  const X = (x) => f.m.l + x / xMax * f.iw, Y = (y) => f.m.t + f.ih - y / yMax * f.ih;
+  [[0, 10], [10, 25], [25, xMax]].forEach(([a, b], i) => el('rect', { x: X(a), y: f.m.t, width: X(b) - X(a), height: f.ih, fill: i % 2 ? css('--panel') : 'transparent' }, svg));
+  for (let y = 0; y <= yMax; y += 10) { el('line', { x1: f.m.l, x2: f.m.l + f.iw, y1: Y(y), y2: Y(y), class: 'grid' }, svg); text(svg, f.m.l - 6, Y(y) + 4, y + '%', { 'text-anchor': 'end' }); }
+  for (let x = 0; x <= xMax; x += 10) text(svg, X(x), f.m.t + f.ih + 16, x, { 'text-anchor': 'middle' });
+  text(svg, f.m.l + f.iw / 2, H - 4, 'true surface area (m²)', { 'text-anchor': 'middle' });
+  const c = css('--c1');
+  d.forEach((x, i) => {
+    const jitter = ((i * 9301 + 49297) % 233280) / 233280 - 0.5;
+    const dot = el('circle', { cx: X(x.true_m2 + jitter * 0.8), cy: Y(Math.min(Math.abs(x.error_pct), yMax)), r: 4, fill: x.fallback ? css('--bg') : c, stroke: c, 'stroke-width': 1.5, 'fill-opacity': x.fallback ? 1 : 0.55 }, svg);
+    bindTip(dot, `${x.roof}, seed ${x.seed}<br>true ${fmt(x.true_m2, 2)} m², error ${x.error_pct > 0 ? '+' : ''}${fmt(x.error_pct, 2)}%${x.fallback ? '<br>outline traced (did not close)' : ''}`);
+  });
+  const bins = [[0, 10, '< 10 m²'], [10, 25, '10–25 m²'], [25, Infinity, '≥ 25 m²']];
+  const summary = bins.map(([a, b, lab]) => {
+    const e = d.filter((x) => x.true_m2 >= a && x.true_m2 < b).map((x) => Math.abs(x.error_pct)).sort((p, q) => p - q);
+    const q = (p) => { const k = p * (e.length - 1); const lo = Math.floor(k); return e[lo] + (e[Math.min(lo + 1, e.length - 1)] - e[lo]) * (k - lo); };
+    if (a === 0) text(svg, X(b) + 6, f.m.t + 14, '← 10 m²', { fill: css('--muted') });
+    return `<span><b>${lab}</b>: n ${e.length}, median ${fmt(q(0.5))}%, p90 ${fmt(q(0.9))}%</span>`;
+  });
+  legend($('#size-legend'), [[c, 'surface closed from lines', 'dot'], [css('--bg') + ';box-shadow:inset 0 0 0 1.5px ' + c, 'outline traced (fallback)', 'dot']]);
+  $('#size-legend').insertAdjacentHTML('beforeend', summary.join(''));
+}
+
+function footprintChart() {
+  const svg = $('#footprint-chart');
+  const W = Math.max(340, svg.parentElement.clientWidth);
+  const keys = [['A_footprint_over_cos_mean_pitch', 'A', 'A: footprint / cos(mean pitch)'], ['B_footprint_mean_secant', 'B', 'B: averaged correctly'],
+    ['C_widened_footprint_mean_secant', 'C', 'C: footprint widened all round'], ['D_footprint_plus_overhang_mean_secant', 'D', 'D: plus measured overhang']];
+  const hs = DATA.houses, rowH = 46, H = hs.length * rowH + 56;
+  const f = frame(svg, W, H, { l: 78, r: 16, t: 10, b: 46 });
+  const lo = -22, hi = 16;
+  const X = (v) => f.m.l + (v - lo) / (hi - lo) * f.iw;
+  el('rect', { x: X(-5), y: f.m.t, width: X(5) - X(-5), height: hs.length * rowH, fill: css('--panel') }, svg);
+  for (let v = -20; v <= 15; v += 5) { el('line', { x1: X(v), x2: X(v), y1: f.m.t, y2: f.m.t + hs.length * rowH, class: 'grid', 'stroke-width': v === 0 ? 2 : 1, stroke: v === 0 ? css('--ink-2') : '' }, svg); text(svg, X(v), f.m.t + hs.length * rowH + 16, (v > 0 ? '+' : '') + v + '%', { 'text-anchor': 'middle' }); }
+  text(svg, X(0), H - 6, 'estimate relative to the report (0 = agrees; shaded ±5%)', { 'text-anchor': 'middle' });
+  hs.forEach((h, i) => {
+    const y = f.m.t + i * rowH + rowH / 2;
+    text(svg, 0, y + 4, h.id, { fill: css('--ink') });
+    const rel = DATA.validation[h.id].relative_to_report;
+    const est = DATA.validation[h.id].footprint_estimates;
+    keys.forEach(([k, s], j) => {
+      const v = rel[k] * 100, c = css('--c' + (j + 1));
+      const yy = y + (j - 1.5) * 7;
+      const dot = el('circle', { cx: X(v), cy: yy, r: 5.5, fill: c, stroke: css('--bg'), 'stroke-width': 2 }, svg);
+      bindTip(dot, `${h.id}, estimate ${s}: ${fmt(est[k])} m²<br>report ${fmt(h.totals.roof_area_m2)} m² (${v > 0 ? '+' : ''}${fmt(v)}%)`);
+      if (s === 'D' || s === 'A') text(svg, X(v) + (s === 'D' ? 9 : -9), yy + 4, s, { 'text-anchor': s === 'D' ? 'start' : 'end', fill: css('--ink'), 'font-weight': 600 });
+    });
+  });
+  legend($('#footprint-legend'), keys.map(([, , lab], j) => [css('--c' + (j + 1)), lab, 'dot']));
+}
+function handStatus() {
+  const n = DATA.hand_measurements;
+  $('#hand-status').innerHTML = n ? `${n} hand measurements recorded so far; results will appear here once the comparison has been run.` :
+    '<strong>No hand measurements yet.</strong> This is the one independent check of the whole pipeline, and it is the main gap in this write-up. The tools for it are ready.';
+}
+
+// ---- 3D viewer
+let viewerTheme = null;
+function initViewer() {
+  const canvas = $('#three');
+  if (!window.THREE) { $('#hud-info').textContent = 'The 3D library did not load. Figures 3–6 show the same data in plan.'; return; }
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true }); }
+  catch (e) { $('#hud-info').textContent = 'This browser has WebGL turned off, so the 3D view is unavailable. Figures 3–6 show the same data in plan.'; return; }
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 2));
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 500);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0x888888, 0.75));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.55); sun.position.set(-20, 40, 25); scene.add(sun);
+  const group = new THREE.Group(); scene.add(group);
+  const state = { house: 'delft_03', color: 'plane', points: true, facets: true, edges: true };
+  let objs = {}, hoverId = null;
+  const orbit = { theta: -0.7, phi: 0.95, r: 30, target: new THREE.Vector3() };
+  const toV = (p) => new THREE.Vector3(p[0], p[2], -p[1]);
+  const col = (hex) => new THREE.Color(hex);
+
+  function build() {
+    group.clear();
+    const h = DATA.byId[state.house];
+    const zs = h.xyz.map((p) => p[2]); const z0 = Math.min(...zs), z1 = Math.max(...zs);
+    const cx = h.xyz.reduce((s, p) => s + p[0], 0) / h.xyz.length, cy = h.xyz.reduce((s, p) => s + p[1], 0) / h.xyz.length;
+    orbit.target.set(cx, (z0 + z1) / 2, -cy);
+    const ext = Math.max(...h.xyz.map((p) => Math.hypot(p[0] - cx, p[1] - cy)));
+    orbit.r = ext * 2.6;
+    // points
+    const pg = new THREE.BufferGeometry();
+    pg.setAttribute('position', new THREE.Float32BufferAttribute(h.xyz.flatMap((p) => [p[0], p[2] + 0.02, -p[1]]), 3));
+    const pc = []; const lo = css('--seq-lo'), hi = css('--seq-hi'), none = css('--none');
+    h.xyz.forEach((p, i) => {
+      const c = state.color === 'height' ? lerpColor(lo, hi, (p[2] - z0) / (z1 - z0)) : hexToRgb(h.labels[i] < 0 ? none : facetColor(h.labels[i]));
+      pc.push(...c);
+    });
+    pg.setAttribute('color', new THREE.Float32BufferAttribute(pc, 3));
+    objs.points = new THREE.Points(pg, new THREE.PointsMaterial({ size: 0.11, vertexColors: true }));
+    // facets
+    const v = h.mesh.vertices, fcs = h.mesh.faces, pos = [], cols = [], ids = [];
+    fcs.forEach((tri, i) => {
+      const c = hexToRgb(facetColor(h.mesh.facet_of_face[i]));
+      tri.forEach((k) => { pos.push(v[k][0], v[k][2], -v[k][1]); cols.push(...c); });
+      ids.push(h.mesh.facet_of_face[i]);
+    });
+    const mg = new THREE.BufferGeometry();
+    mg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    mg.setAttribute('color', new THREE.Float32BufferAttribute(cols, 3));
+    mg.computeVertexNormals();
+    objs.facets = new THREE.Mesh(mg, new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide, transparent: true, opacity: 0.82, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 }));
+    objs.facets.userData.ids = ids;
+    // edges as thin tubes
+    objs.edges = new THREE.Group();
+    h.edges.forEach((e) => {
+      const a = toV(e.p0), b = toV(e.p1), len = a.distanceTo(b); if (len < 1e-3) return;
+      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, len, 6), new THREE.MeshBasicMaterial({ color: col(typeColor(e.type)) }));
+      m.position.copy(a).add(b).multiplyScalar(0.5);
+      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+      objs.edges.add(m);
+    });
+    // ground grid
+    const gsize = Math.ceil(ext * 2.4 / 2) * 2;
+    objs.grid = new THREE.GridHelper(gsize, gsize / 2, col(css('--rule')), col(css('--rule')));
+    objs.grid.position.set(cx, z0 - 0.3, -cy);
+    group.add(objs.grid, objs.points, objs.facets, objs.edges);
+    apply();
+    legend($('#edge-legend'), [...new Set(h.edges.map((e) => e.type))].sort((a, b) => (TYPE_SLOT[a] || 9) - (TYPE_SLOT[b] || 9)).map((t) => [typeColor(t), t]));
+    info(null);
+  }
+  function apply() { objs.points.visible = state.points; objs.facets.visible = state.facets; objs.edges.visible = state.edges; draw(); }
+  function info(fid) {
+    const h = DATA.byId[state.house];
+    if (fid == null) {
+      $('#hud-info').innerHTML = `<b>${h.id}</b> · ${h.address}, built ${h.built}<br>${h.roof}<br>${h.totals.facets} surfaces · ${fmt(h.totals.roof_area_m2)} ± ${fmt(h.totals.roof_area_p90_error_m2)} m² · ${fmt(h.totals.squares, 2)} squares`;
+      return;
+    }
+    const f = h.facets.find((x) => x.id === fid);
+    $('#hud-info').innerHTML = `<b>Surface ${f.id}</b> · ${f.confidence} confidence<br>pitch ${f.pitch_deg}° (${f.pitch_rise_per_12}/12), facing ${f.facing || 'flat'}<br>${fmt(f.area_m2, 2)} m² true, ${fmt(f.plan_area_m2, 2)} m² in plan, ± ${f.area_error_p90_pct}% (p90)`;
+  }
+  function resize() {
+    const w = canvas.clientWidth, hh = canvas.clientHeight;
+    renderer.setSize(w, hh, false); camera.aspect = w / hh; camera.updateProjectionMatrix(); draw();
+  }
+  let queued = false;
+  function draw() {
+    if (queued) return; queued = true;
+    requestAnimationFrame(() => {
+      queued = false;
+      const o = orbit, sp = Math.sin(o.phi);
+      camera.position.set(o.target.x + o.r * sp * Math.cos(o.theta), o.target.y + o.r * Math.cos(o.phi), o.target.z + o.r * sp * Math.sin(o.theta));
+      camera.lookAt(o.target);
+      renderer.render(scene, camera);
+    });
+  }
+  // orbit with pointers
+  const ptrs = new Map(); let pinch0 = 0;
+  canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a[0] - b[0], a[1] - b[1]); } });
+  canvas.addEventListener('pointermove', (e) => {
+    if (ptrs.has(e.pointerId)) {
+      const [px, py] = ptrs.get(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]);
+      if (ptrs.size === 1) {
+        orbit.theta += (e.clientX - px) * 0.008;
+        orbit.phi = Math.min(1.5, Math.max(0.08, orbit.phi - (e.clientY - py) * 0.008));
+      } else if (ptrs.size === 2) {
+        const [a, b] = [...ptrs.values()]; const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+        if (pinch0) orbit.r = Math.min(120, Math.max(6, orbit.r * pinch0 / d)); pinch0 = d;
+      }
+      draw();
+    } else pick(e);
+  });
+  const up = (e) => { ptrs.delete(e.pointerId); if (ptrs.size < 2) pinch0 = 0; if (e.pointerType !== 'mouse') pick(e); };
+  canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', (e) => { e.preventDefault(); orbit.r = Math.min(120, Math.max(6, orbit.r * Math.exp(e.deltaY * 0.0012))); draw(); }, { passive: false });
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function pick(e) {
+    if (!state.facets) return;
+    const r = canvas.getBoundingClientRect();
+    ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObject(objs.facets)[0];
+    const fid = hit ? objs.facets.userData.ids[hit.faceIndex] : null;
+    if (fid !== hoverId) { hoverId = fid; info(fid); }
+  }
+  canvas.addEventListener('pointerleave', () => { hoverId = null; info(null); });
+
+  // controls
+  const hb = $('#house-btns');
+  hb.innerHTML = DATA.houses.map((h) => `<button type="button" data-h="${h.id}" aria-pressed="${h.id === state.house}">${h.id.replace('delft_', 'delft ')}</button>`).join('');
+  hb.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; state.house = b.dataset.h; hb.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b)); build(); });
+  $('#color-btns').addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; state.color = b.dataset.c; $('#color-btns').querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', x === b)); build(); });
+  [['#show-points', 'points'], ['#show-facets', 'facets'], ['#show-edges', 'edges']].forEach(([id, k]) => $(id).addEventListener('change', (e) => { state[k] = e.target.checked; apply(); }));
+  new ResizeObserver(resize).observe(canvas);
+  viewerTheme = build;
+  build(); resize();
+}
+})();
+</script>
