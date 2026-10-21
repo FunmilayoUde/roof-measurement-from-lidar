@@ -3,7 +3,7 @@
     uv run python scripts/stage1_isolate.py --laz data/raw/<tile>.LAZ \
         --lat 52.0 --lon 4.36 --house-id delft_01      # OSM footprint
     uv run python scripts/stage1_isolate.py --laz data/raw/<tile>.LAZ \
-        --bag-id <bag-id> --house-id delft_01  # Dutch BAG footprint
+        --bag-id <BAG pand id> --house-id delft_01     # Dutch BAG footprint
 
 Writes data/interim/<house-id>/{footprint.geojson, roof.ply, stats.json, preview.png}
 and prints the row to paste into RESULTS.md.

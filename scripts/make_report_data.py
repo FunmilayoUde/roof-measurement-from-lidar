@@ -27,12 +27,13 @@ from synthetic_roofs import cross_gable, dormer, gable, hip  # noqa: E402
 ROOT = Path("data/interim")
 OUT = Path("docs/report/report_data.json")
 HOUSES = ["delft_03", "delft_02", "delft_05", "delft_01"]
-# From the BAG record and the stage 1 preview (RESULTS.md, stage 1).
+# From the BAG record and the stage 1 preview (RESULTS.md, stage 1). No addresses or BAG ids:
+# these are private homes, and the write-up is public.
 ABOUT = {
-    "delft_01": {"address": "(address withheld)", "built": "1910s", "roof": "mansard with a curved top, flat annex"},
-    "delft_02": {"address": "(address withheld)", "built": "1970s", "roof": "two flat levels"},
-    "delft_03": {"address": "(address withheld)", "built": "1920s", "roof": "gable, flat extension, small lean-to"},
-    "delft_05": {"address": "(address withheld)", "built": "2010s", "roof": "hipped, with notched corners"},
+    "delft_01": {"built": "1910s", "roof": "mansard with a curved top, flat annex"},
+    "delft_02": {"built": "1970s", "roof": "two flat levels"},
+    "delft_03": {"built": "1920s", "roof": "gable, flat extension, small lean-to"},
+    "delft_05": {"built": "2010s", "roof": "hipped, with notched corners"},
 }
 
 
@@ -49,7 +50,7 @@ def house(h: str) -> dict:
     model = build_roof(xyz, density, seed=rep["settings"]["seed"])
     mesh = roof_mesh(rep)
     return {
-        "id": h, **ABOUT[h], "bag_id": rep["source"]["bag_id"],
+        "id": h, **ABOUT[h],
         "points": len(xyz), "density_pts_per_m2": round(density, 1),
         "nn_spacing_m": round(st["density_inside_walls"]["median_nn_spacing_m"], 3),
         "footprint_m2": round(st["footprint_area_m2"], 1), "footprint": r(st["footprint_local_xy"], 2),

@@ -2,15 +2,12 @@
   "house_id": "delft_03",
   "source": {
     "house_id": "delft_03",
-    "bag_id": "<bag-id>",
+    "bag_id": null,
     "tile": "AHN5_(withheld).LAZ",
     "crs": "EPSG:28992",
-    "offset_xyz": [
-      0.0,
-      0.0,
-      0.0
-    ],
-    "footprint_area_m2": 119.8
+    "offset_xyz": null,
+    "footprint_area_m2": 119.8,
+    "note": "bag_id and offset_xyz withheld in this public example (a private home); coordinates are local"
   },
   "settings": {
     "method": "ransac",

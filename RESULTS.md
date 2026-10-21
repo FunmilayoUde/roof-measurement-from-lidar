@@ -29,13 +29,16 @@ single-dwelling residential, 70–300 m², ≥ 3 m from any other building. All 
 All on AHN5 2023, GeoTiles sub-tile (withheld). Roof eave extent past the BAG outline (where
 the sweep plateaus): 01: ≤ 0.75 m, 02: ≤ 0.5 m, 03: ≤ 0.75 m, 05: ≤ 0.5 m.
 
-| house | BAG id | address | built | roof (from preview) |
-|---|---|---|---|---|
-| delft_01 | <bag-id> | (address withheld) | 1910s | hipped with flat top + flat annex |
-| delft_02 | <bag-id> | (address withheld) | 1970s | two flat levels (6.4 m, 3.4 m): pitch-0 control |
-| delft_03 | <bag-id> | (address withheld) | 1920s | gable + low flat extension + small lean-to |
-| delft_04 | <bag-id> | (address withheld) | 1950s | excluded |
-| delft_05 | <bag-id> | (address withheld) | 2010s | hipped |
+BAG ids and addresses are kept out of the repository (private homes); they are in the
+gitignored `data/houses.csv`.
+
+| house | built | roof (from preview) |
+|---|---|---|
+| delft_01 | 1910s | hipped with flat top + flat annex |
+| delft_02 | 1970s | two flat levels (6.4 m, 3.4 m): pitch-0 control |
+| delft_03 | 1920s | gable + low flat extension + small lean-to |
+| delft_04 | 1950s | excluded |
+| delft_05 | 2010s | hipped |
 
 Notes:
 
