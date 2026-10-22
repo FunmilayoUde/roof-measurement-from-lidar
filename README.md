@@ -1,113 +1,165 @@
 # Roof Measurement from LiDAR Alone
 
-Python package: `roofrecon`.
+Measures a house's roof from an aerial laser scan and nothing else: no photos, plans or site
+visit. Input is the point cloud of one house from the Dutch national scan (AHN). Output is
+what a roofer measures by hand:
 
-Roof reconstruction from open aerial LiDAR: facet polygons with pitch and true area, a typed
-wireframe (ridge, hip, valley, eave, rake), and a measurement report. Numbers go in
-[RESULTS.md](RESULTS.md).
+- every roof surface (facet) as a closed polygon, with its pitch, facing and true sloped area;
+- every edge, typed as ridge, hip, valley, break, eave, rake or flat-roof perimeter, with its length;
+- totals in m², ft² and roofing squares, with an error bar per facet;
+- a 3D model (OBJ/PLY) built from the same numbers.
+
+**Write-up, with figures and an interactive 3D model:** https://roof-measurement-lidar.netlify.app
+
+![delft_03: five facets and their typed edges](docs/media/delft_03_model.png)
+
+The package is `roofrecon`. Python, numpy/scipy, Open3D and shapely; no cloud services and no
+learned models.
+
+## Results
+
+Four detached houses in Delft (AHN5, 2023, about 30–50 points/m²). The footprint check
+estimates roof area from the official building outline, the facets' pitches and the measured
+eave overhang; it tests the report's consistency, not its correctness (see Validation below).
+
+| house | roof | facets | roof area m² | ± p90 m² | footprint check |
+|---|---|---|---|---|---|
+| delft_03 | gable, flat extension, lean-to | 5 | 164.4 | 4.1 | +0.4% |
+| delft_02 | two flat levels | 2 | 93.5 | 0.7 | +0.9% |
+| delft_05 | hipped | 4 | 92.9 | 3.0 | +3.0% |
+| delft_01 | mansard with a curved top | 8 | 224.2 | 6.0 | +4.3% |
+
+On synthetic roofs with known answers (gable, hip, T-shaped, dormer; 20 random versions each),
+facet area error by facet size:
+
+| true facet area | facets | median \|error\| | 90th percentile |
+|---|---|---|---|
+| < 10 m² | 39 | 23.0% | 31.5% |
+| 10–25 m² | 80 | 0.5% | 1.2% |
+| ≥ 25 m² | 160 | 0.2% | 0.7% |
+
+Small facets (dormers) are the weak spot, and the report marks them low confidence. Every
+number, with its source and the settings it came from, is in [RESULTS.md](RESULTS.md).
+
+## How it works
+
+1. **Isolate.** Read the tile, keep building-class points, crop to the building outline plus a
+   buffer sized by a sweep (the roof overhangs the walls), and recentre the coordinates.
+2. **Planes.** Sequential RANSAC finds the roof planes, followed by a clean-up: reassign points
+   to their nearest plane, merge coplanar planes, drop stray pieces, absorb leftovers. Region
+   growing was compared and rejected; the settings come from sweeps over two reference houses
+   and ten random seeds.
+3. **Topology.** Internal edges are plane–plane intersections, and corners where three planes
+   meet are exact. Each edge is typed by which way its two facets slope away from it. Outer
+   edges come from each facet's traced outline, snapped to level (eave) or up-slope (rake).
+   Facet polygons are closed from these lines.
+4. **Report.** One JSON file per house: each physical edge listed once, true areas, rise per 12,
+   squares, and a per-facet confidence from the synthetic error table above.
+5. **Validate.** Footprint-based estimates (correctly averaged over mixed pitches, with the
+   measured overhang) and a hand-measurement protocol for an independent check.
 
 ## Setup
 
 ```sh
-uv sync                 # Python 3.12 (Open3D has no wheels for newer versions yet)
-uv run pytest
+uv sync         # Python 3.12 (Open3D has no wheels for newer versions yet)
+uv run pytest   # 106 tests, mostly on synthetic roofs with known answers
 ```
 
-## Running the pipeline on one house
+## Usage
 
 ```sh
 uv run python scripts/stage1_isolate.py --laz data/raw/<tile>.LAZ --bag-id <BAG pand id> --house-id <name> --crs EPSG:28992
 uv run python scripts/stage2_segment.py --house-id <name> --method ransac   # planes, previews, normal map
 uv run python scripts/stage3_topology.py --house-id <name>                 # facet polygons, typed edges
 uv run python scripts/stage4_report.py --house-id <name>                   # report.json
-uv run python scripts/export_model.py --house-id <name>                   # model.obj / .ply, edges, preview
-uv run python scripts/view_model.py --house-id <name>                     # interactive 3D view over the points
+uv run python scripts/export_model.py --house-id <name>                    # model.obj / .ply, edges, preview
+uv run python scripts/view_model.py --house-id <name>                      # interactive 3D view over the points
 uv run python scripts/stage5_validate.py                                   # footprint checks, hand measurements
-uv run python scripts/make_report_data.py                                 # data for the write-up, docs/report/
 ```
 
-Finding houses: `scripts/scout_tiles.py` scores AHN sub-tiles around a place before downloading;
-`scripts/find_candidates.py` lists detached houses in a tile or bbox. Settings were chosen with
-`scripts/stage2_sweep.py`. Example output: `docs/examples/`. Project write-up: `docs/report/index.html` (serve the folder
-locally, e.g. `python -m http.server -d docs/report`; it loads `report_data.json`).
+Example output for one house: [docs/examples/](docs/examples/). The write-up is built with
+`scripts/make_report_data.py` (figure data) and `scripts/build_site.py` (standalone page in `site/`).
 
-## Layout
+## Repository layout
 
 ```
 src/roofrecon/
-  las_io.py      chunked LAZ reading with a bbox filter; header summary
-  footprint.py   OSM building lookup (Overpass) and reprojection
-  isolate.py     class filter, footprint crop, buffer sweep, recentering, density
-  planes.py      plane fit, pitch, azimuth, areas, alpha shape
-  normals.py     per-point normals by local PCA
-  segment.py     sequential RANSAC, region growing, clean-up
-  topology.py    plane intersections, corners, ridge/hip/valley/break
-  polygons.py    facet polygons with eave/rake/top/perimeter sides
-  pipeline.py    stages 2-3 with the chosen settings
-  measure.py     the stage 4 report
-  export.py      the 3D roof model (mesh + edges)
-  validate.py    stage 5 checks
-  report.py      per-plane tables for stage 2
-  viz.py         previews, normal map, .ply writing
+  las_io.py       chunked LAZ reading with a bounding-box filter; header summary
+  footprint.py    building outlines from the BAG (PDOK WFS) or OpenStreetMap; reprojection
+  isolate.py      class filter, footprint crop, buffer sweep, recentering, density
+  planes.py       plane fit, pitch, azimuth, areas, alpha shape
+  normals.py      per-point normals by local PCA
+  segment.py      sequential RANSAC, region growing, clean-up
+  pipeline.py     stages 2-3 with the chosen settings
+  topology.py     plane intersections, three-plane corners, edge typing
+  polygons.py     facet polygons from internal and outer lines
+  measure.py      the stage 4 report
+  validate.py     footprint estimates, plan overlap, hand-measurement comparison
+  export.py       the 3D roof model (mesh and edges)
+  report.py       per-plane tables for stage 2
+  viz.py          previews, normal map, PLY writing
 scripts/
-  stage1_isolate.py   tile + house -> data/interim/<id>/{roof.ply, stats.json, preview.png}
-  view.py             Open3D viewer
-tests/            synthetic scenes with known answers
+  stage1_isolate.py … stage5_validate.py   one script per stage
+  stage2_sweep.py      parameter sweeps that chose the stage 2 settings
+  scout_tiles.py       scores AHN sub-tiles around a place before downloading
+  find_candidates.py   lists detached houses in a tile or bounding box
+  export_model.py, view_model.py, view.py   3D model export and viewers
+  make_report_data.py, build_site.py        the write-up
+tests/            synthetic roofs with known answers, and tests per module
+validation/       hand-measurement protocol and the measurements file
+docs/             example output, sweep figures, the write-up
 data/             not in git: raw/ for tiles, interim/ for per-house outputs
 ```
 
-## Stage 1: load and isolate
+## Data
 
-### Getting a tile (AHN, Netherlands)
+**Getting a tile.** GeoTiles (TU Delft) splits AHN into 1 × 1.25 km sub-tiles of a few hundred
+MB, instead of the 4+ GB national sheets. Tile pages are at
+`https://geotiles.citg.tudelft.nl/tiles/html/<TILE>.html`. Download the AHN5 (or AHN4) `.LAZ`
+into `data/raw/`. `scripts/scout_tiles.py` helps choose a tile.
 
-1. Pick a **detached** house (see "Choosing houses" below) and note its lat/lon.
-2. Find the AHN tile that covers it. GeoTiles (TU Delft) splits AHN into 1 x 1.25 km
-   sub-tiles, a few hundred MB each instead of the 4+ GB national sheets. Tile pages
-   are at `https://geotiles.citg.tudelft.nl/tiles/html/<TILE>.html`. Download the
-   AHN4 (or AHN5 where available) `.LAZ` into `data/raw/`.
-3. Run:
+**Choosing houses.**
 
-```sh
-uv run python scripts/stage1_isolate.py --laz data/raw/<tile>.LAZ \
-    --lat <lat> --lon <lon> --house-id <name> --crs EPSG:28992
-uv run python scripts/view.py data/interim/<name>/roof.ply
-```
-
-Open `roof.ply` in CloudCompare as well. Because the coordinates are recentered, it
-won't ask for a global shift.
-
-### Choosing houses
-
-- **Detached, not terraced.** Most Dutch single-family homes are row houses whose roofs
-  run continuously across party walls. The footprint splits the building, but no
-  geometric edge does. Stages 2 and 3 would then produce facets that end at a wall
-  you can't see in the points. Begin with detached houses. Terraced ones are a later,
-  separate problem.
+- **Detached, not terraced.** Most Dutch single-family homes are row houses whose roofs run
+  continuously across party walls. The outline splits the building, but no geometric edge does,
+  so facets would end at a wall that isn't in the points.
 - Vary the roof types: gable, hip, and at least one with a dormer or an L-shaped plan.
-- Avoid heavy tree cover over the roof. Points under the canopy are missing, not
-  misplaced.
+- Avoid heavy tree cover over the roof. Points under the canopy are missing, not misplaced.
 
-### Why each step exists
+Houses are referred to by project labels (delft_01 …). Their BAG ids and addresses are kept out
+of the repository, in the untracked `data/houses.csv`.
 
-- **Class filter (6 = building).** The provider's classifier already separates ground,
-  vegetation, and buildings. We trust it for now and measure how much it gets wrong:
-  the class histogram inside the walls shows what *isn't* labelled building, and
-  anything there caps stage-2 coverage.
-- **Buffer beyond the footprint.** On every house so far the roof extends past the BAG
-  outline, by 0.25–0.75 m (RESULTS.md), so treat the outline as roughly the walls. Crop at the walls and
-  you cut the eaves off, which biases area low and moves the eave edges inward. The
-  buffer sweep counts building points as the crop grows. The count should rise up to
-  the eave, stay flat, then rise again at the next building. Pick a buffer on the
-  plateau.
-- **Mitred buffer.** A round buffer cuts off square eave corners. Mitred joins keep
-  them.
-- **Recentering.** Projected coordinates are large. float32 (used by most PLY
-  consumers and GPUs) resolves about 3 cm at y ≈ 450 000 m, and about 50 cm at a UTM
-  northing of 4.5 million m. Subtracting a whole-metre offset brings that to
-  sub-micron. The offset goes in `stats.json` so results can be mapped back.
-- **Density, measured in plan view, on building points inside the walls.** The roof
-  covers that whole region, so the area isn't diluted by the empty part of the buffer
-  (dividing by the buffered area gave 25.1 instead of 33.5 on delft_01). `nominal` =
-  points / footprint area. `local` = median neighbour count within 1 m / π. Nearest-neighbour spacing is reported on
-  its own because converting it to density needs an assumption about the sampling
-  pattern.
+## Design notes
+
+- **Class filter (6 = building).** The provider's classification is trusted, and its errors are
+  measured: the class histogram inside the walls shows what isn't labelled building.
+- **Buffer beyond the outline.** The BAG outline traces the walls; the roof extends 0.25–0.75 m
+  past it on these houses. Crop at the walls and the eaves are cut off, which biases area low.
+  The buffer sweep counts building points as the crop grows: the count rises to the eave, stays
+  flat, then rises again at the next building. The buffer is chosen on the plateau.
+- **Mitred buffer.** A round buffer cuts off square eave corners; mitred joins keep them.
+- **Recentering.** float32, used by most PLY readers and GPUs, resolves only about 3 cm at Dutch
+  map coordinates (y ≈ 450 000 m). Subtracting a whole-metre offset fixes that; the offset is
+  stored so results can be mapped back.
+- **Density in plan view, inside the walls.** Measured on the area the roof covers, so it isn't
+  diluted by the empty part of the buffer (25.1 instead of 33.5 points/m² on delft_01).
+  Nearest-neighbour spacing is reported separately.
+- **Settings by sweep.** Each setting is swept over a range and the chosen value sits in the
+  middle of the range that works, with the tradeoffs recorded in RESULTS.md.
+
+## Limitations
+
+- Facets under 10 m² (dormers, small lean-tos) have a median area error of about 23%.
+- Four real houses from one tile; none has a valley or a dormer. The settings were chosen on two
+  of them.
+- Curved roofs are split into planar strips (delft_01's top).
+- The footprint check tests consistency only. Hand measurements, the independent check, are in
+  progress ([validation/PROTOCOL.md](validation/PROTOCOL.md)).
+
+## Data sources and license
+
+Laser points: [AHN](https://www.ahn.nl/) (Actueel Hoogtebestand Nederland), CC0. Building
+outlines and construction years: [BAG](https://www.kadaster.nl/zakelijk/registraties/basisregistraties/bag)
+via [PDOK](https://www.pdok.nl/), CC0.
+
+Code: [MIT](LICENSE).

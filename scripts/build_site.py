@@ -2,7 +2,7 @@
 
     uv run python scripts/build_site.py
 
-docs/report/index.html is written without <html>/<head> tags (its first host adds them);
+docs/report/index.html is a page fragment without <html>/<head> tags;
 this wraps it in a full document and copies report_data.json beside it, into site/.
 """
 
@@ -27,7 +27,6 @@ HEAD = """<!doctype html>
 
 def main() -> None:
     page = (SRC / "index.html").read_text()
-    page = "\n".join(line for line in page.split("\n") if 'name="claude:' not in line)  # first host's meta only
     head_end = page.index("</style>") + len("</style>")
     OUT.mkdir(exist_ok=True)
     (OUT / "index.html").write_text(

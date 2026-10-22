@@ -2,8 +2,10 @@
 
 Facets come from their polygons. Edges are listed once each: a shared internal edge appears
 as a side of both facet polygons, usually with slightly different endpoints (each facet ends
-it where its own outer lines cross it), so the two versions are reconciled by averaging
-matching endpoints.
+it where its own outer lines cross it). Versions within 0.5 m of each other are averaged;
+further apart, they cover different stretches (one also runs along a third facet), so only
+their overlap is kept. Traced (fallback) facets are trimmed where they overlap a closed facet
+at the same height, so no area is counted twice.
 """
 
 from __future__ import annotations
