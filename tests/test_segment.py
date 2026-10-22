@@ -150,6 +150,8 @@ def test_stray_coplanar_points_do_not_inflate_area(segment):
     xyz = np.vstack([roof.xyz, strays])
     seg = segment(xyz, threshold=0.10)
     assert np.all(seg.labels[-10:] == -1)
-    south = np.bincount(seg.labels[: len(roof.xyz)][roof.labels == 0][seg.labels[: len(roof.xyz)][roof.labels == 0] >= 0]).argmax()
+    south = np.bincount(
+        seg.labels[: len(roof.xyz)][roof.labels == 0][seg.labels[: len(roof.xyz)][roof.labels == 0] >= 0]
+    ).argmax()
     area = hull_area(xyz[seg.labels == south], seg.planes[south])
     assert area == pytest.approx(roof.true_areas[0], rel=0.03)

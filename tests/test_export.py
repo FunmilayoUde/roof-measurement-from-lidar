@@ -18,9 +18,15 @@ def test_triangulated_square_with_hole():
 
 def test_sloped_facet_area_is_true_area():
     # A 4 x 4 square tilted 40 degrees about x: true area 16, plan area 16 cos 40.
-    t = np.tan(np.radians(40))
-    v = np.array([[0, 0, 0], [4, 0, 0], [4, 4 * np.cos(np.radians(40)), 4 * np.sin(np.radians(40))],
-                  [0, 4 * np.cos(np.radians(40)), 4 * np.sin(np.radians(40))]], float)
+    v = np.array(
+        [
+            [0, 0, 0],
+            [4, 0, 0],
+            [4, 4 * np.cos(np.radians(40)), 4 * np.sin(np.radians(40))],
+            [0, 4 * np.cos(np.radians(40)), 4 * np.sin(np.radians(40))],
+        ],
+        float,
+    )
     p, f = triangulate_facet(v, [])
     area = 0.5 * np.linalg.norm(np.cross(p[f[:, 1]] - p[f[:, 0]], p[f[:, 2]] - p[f[:, 0]]), axis=1).sum()
     assert area == pytest.approx(16.0)

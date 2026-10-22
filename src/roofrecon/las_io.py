@@ -19,7 +19,7 @@ class PointData:
     def __len__(self) -> int:
         return len(self.xyz)
 
-    def subset(self, mask: np.ndarray) -> "PointData":
+    def subset(self, mask: np.ndarray) -> PointData:
         return PointData(
             self.xyz[mask],
             self.classification[mask],

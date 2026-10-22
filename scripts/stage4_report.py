@@ -47,13 +47,21 @@ def main() -> None:
     plot_report_plan(rep, house / "report_plan.png")
 
     t = rep["totals"]
-    print(f"{args.house_id}: {t['facets']} facets, {t['roof_area_m2']} ± {t['roof_area_p90_error_m2']} m² (p90) "
-          f"= {t['roof_area_ft2']:.0f} ft² = {t['squares']} squares")
+    print(
+        f"{args.house_id}: {t['facets']} facets, {t['roof_area_m2']} ± {t['roof_area_p90_error_m2']} m² (p90) "
+        f"= {t['roof_area_ft2']:.0f} ft² = {t['squares']} squares"
+    )
     print(f"  {'facet':>5} {'pitch':>12} {'facing':>6} {'area m²':>8} {'±p90':>6}  confidence  outline")
     for f in sorted(rep["facets"], key=lambda f: -f["area_m2"]):
-        print(f"  {f['id']:>5} {f['pitch_deg']:>5}° ({f['pitch_rise_per_12']:>4}/12) {f['facing'] or 'flat':>6} {f['area_m2']:>8} "
-              f"{f['area_error_p90_pct']:>5}%  {f['confidence']:10}  {f['outline']}")
-    print("  lengths: " + ", ".join(f"{k} {v} m ({t['length_ft_by_type'][k]} ft)" for k, v in t["length_m_by_type"].items()))
+        print(
+            f"  {f['id']:>5} {f['pitch_deg']:>5}° ({f['pitch_rise_per_12']:>4}/12) "
+            f"{f['facing'] or 'flat':>6} {f['area_m2']:>8} "
+            f"{f['area_error_p90_pct']:>5}%  {f['confidence']:10}  {f['outline']}"
+        )
+    print(
+        "  lengths: "
+        + ", ".join(f"{k} {v} m ({t['length_ft_by_type'][k]} ft)" for k, v in t["length_m_by_type"].items())
+    )
     for note in rep["quality"]["notes"]:
         print(f"  note: {note}")
 
@@ -81,15 +89,29 @@ def plot_report_plan(rep: dict, path: Path) -> None:
         a, b = np.asarray(e["p0_local_m"]), np.asarray(e["p1_local_m"])
         ax.plot([a[0], b[0]], [a[1], b[1]], color=colors.get(e["type"], "#52514e"), lw=2)
         m = (a + b) / 2
-        ax.text(m[0], m[1], str(e["id"]), fontsize=8, ha="center", va="center", color="#0b0b0b",
-                bbox={"facecolor": "#fcfcfb", "alpha": 0.85, "pad": 0.8, "edgecolor": "none"})
+        ax.text(
+            m[0],
+            m[1],
+            str(e["id"]),
+            fontsize=8,
+            ha="center",
+            va="center",
+            color="#0b0b0b",
+            bbox={"facecolor": "#fcfcfb", "alpha": 0.85, "pad": 0.8, "edgecolor": "none"},
+        )
         used.add(e["type"])
     ax.set_aspect("equal")
-    ax.set_title(f"{rep['house_id']}: edge ids (numbers) and facet ids (F) for matching hand measurements",
-                 loc="left", fontsize=10, color="#0b0b0b")
+    ax.set_title(
+        f"{rep['house_id']}: edge ids (numbers) and facet ids (F) for matching hand measurements",
+        loc="left",
+        fontsize=10,
+        color="#0b0b0b",
+    )
     ax.tick_params(colors="#52514e", labelsize=8)
     handles = [Line2D([], [], color=colors[k], lw=2, label=k) for k in colors if k in used]
-    ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=len(handles), frameon=False, fontsize=8)
+    ax.legend(
+        handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.05), ncol=len(handles), frameon=False, fontsize=8
+    )
     fig.tight_layout()
     fig.savefig(path, dpi=110, facecolor="#fcfcfb", bbox_inches="tight")
     plt.close(fig)

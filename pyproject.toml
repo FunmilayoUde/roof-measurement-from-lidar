@@ -29,3 +29,12 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["tests"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "UP"]
+# zip() over arrays of matching length by construction; strict= would only add noise.
+ignore = ["B905"]

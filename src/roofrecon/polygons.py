@@ -54,7 +54,9 @@ class FacetPolygon:
         outer = shapely.make_valid(Polygon(to_plane_coords(self.vertices, self.plane)))
         if not self.holes:
             return outer
-        return outer.difference(shapely.union_all([shapely.make_valid(Polygon(to_plane_coords(h, self.plane))) for h in self.holes]))
+        return outer.difference(
+            shapely.union_all([shapely.make_valid(Polygon(to_plane_coords(h, self.plane))) for h in self.holes])
+        )
 
     def plan_shape(self):
         """The facet seen from above, holes removed."""
@@ -108,8 +110,15 @@ def _fit_outer_line(pts: np.ndarray, snap_deg: float):
     return c, d
 
 
-def _push_to_edge(line, uv: np.ndarray, centre: np.ndarray, run_pts: np.ndarray, density: float,
-                  inset: float = 0.03, min_rank: int = 2):
+def _push_to_edge(
+    line,
+    uv: np.ndarray,
+    centre: np.ndarray,
+    run_pts: np.ndarray,
+    density: float,
+    inset: float = 0.03,
+    min_rank: int = 2,
+):
     """Move an outer line outward to where the facet's points end along it.
 
     The line was fitted through the outline's vertices, which sit inside the true edge
@@ -176,8 +185,11 @@ def facet_polygon(
     # Holes: areas inside the facet with none of its points, large enough not to be gaps
     # between points (a dormer sitting on a slope; on a synthetic dormer roof the main slope
     # read 12% large without them). Kept as traced, simplified rings.
-    holes = [_to_3d(np.asarray(shapely.simplify(Polygon(r), simplify_tol / 2).exterior.coords)[:-1], plane)
-             for r in outline.interiors if Polygon(r).area >= min_hole_area]
+    holes = [
+        _to_3d(np.asarray(shapely.simplify(Polygon(r), simplify_tol / 2).exterior.coords)[:-1], plane)
+        for r in outline.interiors
+        if Polygon(r).area >= min_hole_area
+    ]
     simple = np.asarray(shapely.simplify(Polygon(ring), simplify_tol).exterior.coords)[:-1]
 
     # Internal lines available to this facet, keyed by the neighbouring facet.
@@ -228,14 +240,14 @@ def facet_polygon(
             loop = pts[:-1]
             corners = np.asarray(shapely.simplify(Polygon(loop), simplify_tol).exterior.coords)[:-1]
             idx = sorted({int(np.argmin(np.linalg.norm(loop - q, axis=1))) for q in corners})
-            pts = np.vstack([loop[idx[0]:], loop[:idx[0] + 1]])
+            pts = np.vstack([loop[idx[0] :], loop[: idx[0] + 1]])
             idx = [i - idx[0] for i in idx] + [len(pts) - 1]
         else:
             line_simple = np.asarray(shapely.simplify(shapely.linestrings(pts), simplify_tol).coords)
             idx = [int(np.argmin(np.linalg.norm(pts - q, axis=1))) for q in line_simple]
         for i0, i1 in zip(idx[:-1], idx[1:]):
             if i1 > i0:
-                runs.append({"label": ("outer",), "pts": pts[i0:i1 + 1]})
+                runs.append({"label": ("outer",), "pts": pts[i0 : i1 + 1]})
 
     # Merge consecutive runs with the same internal edge, or consecutive outer runs that
     # are nearly collinear.
@@ -330,8 +342,11 @@ def _close(runs: list[dict], line_of, outline, max_corner_dist: float = 2.0):
     # well past the facet (delft_03: 6.0 m, after a messy end's pieces were dropped). Good
     # corners can sit outside the outline too, where a facet narrows to a thin tip the points
     # don't reach: up to 1.16 m on 200 synthetic facets and 1.44 m on the real houses. Hence 2 m.
-    far = max(outline.exterior.distance(shapely.points(c)) for c in corners if not outline.contains(shapely.points(c))) \
-        if any(not outline.contains(shapely.points(c)) for c in corners) else 0.0
+    far = (
+        max(outline.exterior.distance(shapely.points(c)) for c in corners if not outline.contains(shapely.points(c)))
+        if any(not outline.contains(shapely.points(c)) for c in corners)
+        else 0.0
+    )
     if far > max_corner_dist:
         return None, None, None, f"corner {far:.1f} m outside the outline"
     return corners, lines, runs, None
@@ -435,7 +450,7 @@ def _trim_ends(pts: np.ndarray, trim: float) -> np.ndarray:
         return pts
     along = np.concatenate([[0], np.cumsum(np.linalg.norm(np.diff(pts, axis=0), axis=1))])
     keep = (along > trim) & (along < along[-1] - trim)
-    return pts[keep] if keep.sum() >= 3 else pts[len(pts) // 4: -(len(pts) // 4) or None]
+    return pts[keep] if keep.sum() >= 3 else pts[len(pts) // 4 : -(len(pts) // 4) or None]
 
 
 def _collinear(pts_a: np.ndarray, pts_b: np.ndarray, deg: float) -> bool:

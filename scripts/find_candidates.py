@@ -35,10 +35,16 @@ def bag_buildings_in_bbox(bbox: tuple[float, float, float, float], page: int = 1
     feats, start = [], 0
     while True:
         params = {
-            "service": "WFS", "version": "2.0.0", "request": "GetFeature", "typeNames": "bag:pand",
-            "outputFormat": "application/json", "srsName": "EPSG:28992",
+            "service": "WFS",
+            "version": "2.0.0",
+            "request": "GetFeature",
+            "typeNames": "bag:pand",
+            "outputFormat": "application/json",
+            "srsName": "EPSG:28992",
             "bbox": ",".join(map(str, bbox)) + ",EPSG:28992",
-            "count": page, "startIndex": start, "sortBy": "identificatie",
+            "count": page,
+            "startIndex": start,
+            "sortBy": "identificatie",
         }
         with urllib.request.urlopen(f"{BAG_WFS_URL}?{urllib.parse.urlencode(params)}", timeout=120) as r:
             batch = json.load(r)["features"]
@@ -96,12 +102,18 @@ def main() -> None:
         gap = gaps[0] if gaps else 30.0
         if gap < args.min_gap:
             continue
-        rows.append({
-            "bag_id": pr["identificatie"], "area_m2": round(p.area, 1), "vertices": len(p.exterior.coords) - 1,
-            "gap_m": round(gap, 1), "bouwjaar": pr.get("bouwjaar"),
-            "concavity": round(1 - p.area / p.convex_hull.area, 3),
-            "x": round(p.centroid.x, 1), "y": round(p.centroid.y, 1),
-        })
+        rows.append(
+            {
+                "bag_id": pr["identificatie"],
+                "area_m2": round(p.area, 1),
+                "vertices": len(p.exterior.coords) - 1,
+                "gap_m": round(gap, 1),
+                "bouwjaar": pr.get("bouwjaar"),
+                "concavity": round(1 - p.area / p.convex_hull.area, 3),
+                "x": round(p.centroid.x, 1),
+                "y": round(p.centroid.y, 1),
+            }
+        )
     rows.sort(key=lambda r: -r["gap_m"])
     for r in rows:
         r["address"] = "" if args.no_address else nearest_address(r["x"], r["y"])
@@ -114,8 +126,10 @@ def main() -> None:
         w.writerows(rows)
     print(f"{len(rows)} candidates -> {out}")
     for r in rows:
-        print(f"  {r['bag_id']}  {r['area_m2']:>6} m²  {r['vertices']:>3} vtx  concavity {r['concavity']:.2f}  "
-              f"gap {r['gap_m']:>5} m  {r['bouwjaar']}  {r['address']}")
+        print(
+            f"  {r['bag_id']}  {r['area_m2']:>6} m²  {r['vertices']:>3} vtx  concavity {r['concavity']:.2f}  "
+            f"gap {r['gap_m']:>5} m  {r['bouwjaar']}  {r['address']}"
+        )
 
 
 if __name__ == "__main__":

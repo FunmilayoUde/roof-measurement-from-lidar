@@ -119,7 +119,10 @@ def main() -> None:
 
     d = stats["density_inside_walls"]
     print("\nclass histogram inside walls:", stats["class_histogram_inside_walls"])
-    print(f"non-building inside walls: {nonb['total']} total, {nonb['interior']} more than {nonb['wall_band_m']} m from the walls")
+    print(
+        f"non-building inside walls: {nonb['total']} total, "
+        f"{nonb['interior']} more than {nonb['wall_band_m']} m from the walls"
+    )
     print("buffer sweep (building points):")
     for r in sweep:
         print(f"  {r['buffer_m']:>5.2f} m  {r['points']:>7d}  (+{r['added'] if r['added'] is not None else '-'})")

@@ -34,17 +34,19 @@ def scene():
     neighbour = gable(rng, x0 + WALLS[0] + NEIGHBOUR_GAP, y0, *WALLS, DENSITY)
 
     n_ground = 4000
-    ground = np.column_stack([
-        rng.uniform(x0 - 5, x0 + 30, n_ground),
-        rng.uniform(y0 - 5, y0 + 15, n_ground),
-        np.zeros(n_ground),
-    ])
+    ground = np.column_stack(
+        [
+            rng.uniform(x0 - 5, x0 + 30, n_ground),
+            rng.uniform(y0 - 5, y0 + 15, n_ground),
+            np.zeros(n_ground),
+        ]
+    )
     tree = np.column_stack([rng.normal(x0 + 1, 0.5, 300), rng.normal(y0 - 2, 0.5, 300), rng.uniform(2, 8, 300)])
 
     xyz = np.vstack([house, neighbour, ground, tree])
-    cls = np.concatenate([
-        np.full(len(house), 6), np.full(len(neighbour), 6), np.full(n_ground, 2), np.full(len(tree), 5)
-    ]).astype(np.uint8)
+    cls = np.concatenate(
+        [np.full(len(house), 6), np.full(len(neighbour), 6), np.full(n_ground, 2), np.full(len(tree), 5)]
+    ).astype(np.uint8)
     return {
         "xyz": xyz,
         "classification": cls,

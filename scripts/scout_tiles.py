@@ -43,8 +43,12 @@ def score(bounds) -> dict:
     n = concave = 0
     for i, (f, p) in enumerate(zip(feats, polys)):
         pr = f["properties"]
-        if not ("woonfunctie" in (pr.get("gebruiksdoel") or "") and pr.get("aantal_verblijfsobjecten") == 1
-                and 90 <= p.area <= 400 and tile.contains(p.buffer(5))):
+        if not (
+            "woonfunctie" in (pr.get("gebruiksdoel") or "")
+            and pr.get("aantal_verblijfsobjecten") == 1
+            and 90 <= p.area <= 400
+            and tile.contains(p.buffer(5))
+        ):
             continue
         if any(polys[j].distance(p) < 3.0 for j in tree.query(p.buffer(3.0)) if j != i):
             continue
@@ -69,8 +73,11 @@ def main() -> None:
                 bx0, by1 = x0 + col * SUB_W, y0 + SHEET_H - row * SUB_H
                 bounds = (bx0, by1 - SUB_H, bx0 + SUB_W, by1)
                 s = score(bounds)
-                print(f"  sheet SW ({x0:.0f}, {y0:.0f}) sub-tile {k:02d}  bbox {tuple(int(b) for b in bounds)}: "
-                      f"{s['buildings']:>4} buildings, {s['candidates']:>3} detached candidates, {s['l_or_t_shaped']:>3} L/T-shaped")
+                print(
+                    f"  sheet SW ({x0:.0f}, {y0:.0f}) sub-tile {k:02d}  bbox {tuple(int(b) for b in bounds)}: "
+                    f"{s['buildings']:>4} buildings, {s['candidates']:>3} detached candidates, "
+                    f"{s['l_or_t_shaped']:>3} L/T-shaped"
+                )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,4 @@
 import numpy as np
-import pytest
 
 from roofrecon.normals import estimate_normals
 from synthetic_roofs import gable

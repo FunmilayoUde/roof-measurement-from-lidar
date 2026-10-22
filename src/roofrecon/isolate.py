@@ -53,7 +53,12 @@ def non_building_inside_walls(
     other = inside & (classification != building_class)
     interior = other.copy()
     interior[other] = distance_to_outline(xy[other], footprint) > wall_band_m
-    return {"total": int(other.sum()), "interior": int(interior.sum()), "wall_band_m": wall_band_m, "mask_interior": interior}
+    return {
+        "total": int(other.sum()),
+        "interior": int(interior.sum()),
+        "wall_band_m": wall_band_m,
+        "mask_interior": interior,
+    }
 
 
 def crop_mask(xy: np.ndarray, footprint: Polygon, buffer_m: float) -> np.ndarray:
@@ -67,9 +72,7 @@ def crop_mask(xy: np.ndarray, footprint: Polygon, buffer_m: float) -> np.ndarray
     return in_polygon(xy, region)
 
 
-def buffer_sweep(
-    xy: np.ndarray, footprint: Polygon, buffers_m: list[float]
-) -> list[dict]:
+def buffer_sweep(xy: np.ndarray, footprint: Polygon, buffers_m: list[float]) -> list[dict]:
     """Count building points captured as the crop grows.
 
     Beyond the eave the count should plateau: no roof, and no building-class points,

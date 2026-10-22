@@ -8,7 +8,6 @@ Facets coloured, edges coloured by type (see stage 3's legend), laser points in 
 import argparse
 from pathlib import Path
 
-import numpy as np
 import open3d as o3d
 
 ap = argparse.ArgumentParser()
@@ -18,7 +17,10 @@ ap.add_argument("--root", type=Path, default=Path("data/interim"))
 args = ap.parse_args()
 
 house = args.root / args.house_id
-geoms = [o3d.io.read_triangle_mesh(str(house / "model" / "model.ply")), o3d.io.read_line_set(str(house / "model" / "edges.ply"))]
+geoms = [
+    o3d.io.read_triangle_mesh(str(house / "model" / "model.ply")),
+    o3d.io.read_line_set(str(house / "model" / "edges.ply")),
+]
 if not args.no_points:
     pcd = o3d.io.read_point_cloud(str(house / "roof.ply"))
     pcd.paint_uniform_color([0.32, 0.32, 0.31])

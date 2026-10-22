@@ -21,9 +21,17 @@ from roofrecon.planes import azimuth_deg, hull_area, pitch_deg
 from roofrecon.pipeline import MIN_AREA_M2, THRESHOLD_M, build_roof
 
 # Validated categorical slots (reference palette, light mode), one per edge kind, fixed order.
-KIND_COLORS = {"ridge": "#2a78d6", "hip": "#eb6834", "valley": "#1baf7a", "eave": "#eda100",
-               "rake": "#e87ba4", "break": "#008300", "top": "#6250d6", "perimeter": "#e34948",
-               "other": "#52514e"}
+KIND_COLORS = {
+    "ridge": "#2a78d6",
+    "hip": "#eb6834",
+    "valley": "#1baf7a",
+    "eave": "#eda100",
+    "rake": "#e87ba4",
+    "break": "#008300",
+    "top": "#6250d6",
+    "perimeter": "#e34948",
+    "other": "#52514e",
+}
 
 
 def main() -> None:
@@ -46,14 +54,20 @@ def main() -> None:
     for P in polys:
         pts = xyz[seg.labels == P.facet]
         hull = hull_area(pts, P.plane)
-        facets.append({
-            "facet": P.facet, "points": int(len(pts)), "pitch_deg": round(pitch_deg(P.plane.normal), 2),
-            "azimuth_deg": None if (az := azimuth_deg(P.plane.normal)) is None else round(az, 1),
-            "polygon_area_m2": round(P.area, 2), "hull_area_m2": round(hull, 2), "plan_area_m2": round(P.plan_area, 2),
-            "fallback": P.fallback,
-            "sides": [{"kind": s.kind, "neighbour": s.neighbour, "length_m": round(s.length, 2)} for s in P.sides],
-            "vertices_local": np.round(P.vertices, 3).tolist(),
-        })
+        facets.append(
+            {
+                "facet": P.facet,
+                "points": int(len(pts)),
+                "pitch_deg": round(pitch_deg(P.plane.normal), 2),
+                "azimuth_deg": None if (az := azimuth_deg(P.plane.normal)) is None else round(az, 1),
+                "polygon_area_m2": round(P.area, 2),
+                "hull_area_m2": round(hull, 2),
+                "plan_area_m2": round(P.plan_area, 2),
+                "fallback": P.fallback,
+                "sides": [{"kind": s.kind, "neighbour": s.neighbour, "length_m": round(s.length, 2)} for s in P.sides],
+                "vertices_local": np.round(P.vertices, 3).tolist(),
+            }
+        )
         for s in P.sides:
             lengths[s.kind] += s.length / (2 if s.neighbour is not None else 1)
 
@@ -67,8 +81,10 @@ def main() -> None:
         "roof_area_polygon_m2": round(sum(P.area for P in polys), 1),
         "roof_area_hull_m2": round(sum(f["hull_area_m2"] for f in facets), 1),
         "lengths_m": {k: round(v, 2) for k, v in sorted(lengths.items())},
-        "internal_edges": [{"kind": e.kind, "facets": list(e.facets), "length_m": round(e.length, 2),
-                            "snapped": list(e.snapped)} for e in edges],
+        "internal_edges": [
+            {"kind": e.kind, "facets": list(e.facets), "length_m": round(e.length, 2), "snapped": list(e.snapped)}
+            for e in edges
+        ],
         "facets": facets,
     }
     (out / "topology.json").write_text(json.dumps(summary, indent=2))
@@ -79,7 +95,10 @@ def main() -> None:
     for f in sorted(facets, key=lambda f: -f["polygon_area_m2"]):
         az = "-" if f["azimuth_deg"] is None else f"{f['azimuth_deg']:.0f}"
         sides = ", ".join(f"{s['kind']} {s['length_m']}" for s in f["sides"])
-        print(f"  {f['facet']:>5} {f['pitch_deg']:>7.1f} {az:>6} {f['polygon_area_m2']:>11.1f} {f['hull_area_m2']:>8.1f}  {sides}")
+        print(
+            f"  {f['facet']:>5} {f['pitch_deg']:>7.1f} {az:>6} {f['polygon_area_m2']:>11.1f} "
+            f"{f['hull_area_m2']:>8.1f}  {sides}"
+        )
     print(f"  roof area: polygons {summary['roof_area_polygon_m2']} m², hulls {summary['roof_area_hull_m2']} m²")
     print("  lengths: " + ", ".join(f"{k} {v}" for k, v in summary["lengths_m"].items()))
 
@@ -99,12 +118,25 @@ def plot_plan(xyz, labels, polys, path: Path, title: str) -> None:
     used = set()
     for P in polys:
         for s in P.sides:
-            ax.plot([s.p0[0], s.p1[0]], [s.p0[1], s.p1[1]], color=KIND_COLORS.get(s.kind, "#52514e"), lw=2.2,
-                    ls="--" if P.fallback else "-")
+            ax.plot(
+                [s.p0[0], s.p1[0]],
+                [s.p0[1], s.p1[1]],
+                color=KIND_COLORS.get(s.kind, "#52514e"),
+                lw=2.2,
+                ls="--" if P.fallback else "-",
+            )
             used.add(s.kind)
         c = P.vertices.mean(axis=0)
-        ax.text(c[0], c[1], f"{P.facet}\n{P.area:.1f} m²", fontsize=8, ha="center", va="center", color="#0b0b0b",
-                bbox={"facecolor": "#fcfcfb", "alpha": 0.8, "pad": 1, "edgecolor": "none"})
+        ax.text(
+            c[0],
+            c[1],
+            f"{P.facet}\n{P.area:.1f} m²",
+            fontsize=8,
+            ha="center",
+            va="center",
+            color="#0b0b0b",
+            bbox={"facecolor": "#fcfcfb", "alpha": 0.8, "pad": 1, "edgecolor": "none"},
+        )
     ax.set_aspect("equal")
     ax.set_title(title, loc="left", color="#0b0b0b")
     ax.tick_params(colors="#52514e", labelsize=8)
@@ -113,7 +145,9 @@ def plot_plan(xyz, labels, polys, path: Path, title: str) -> None:
     handles = [Line2D([], [], color=KIND_COLORS[k], lw=2.2, label=k) for k in KIND_COLORS if k in used]
     if any(P.fallback for P in polys):
         handles.append(Line2D([], [], color="#52514e", lw=2.2, ls="--", label="fallback outline"))
-    ax.legend(handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=len(handles), frameon=False, fontsize=8)
+    ax.legend(
+        handles=handles, loc="upper center", bbox_to_anchor=(0.5, -0.06), ncol=len(handles), frameon=False, fontsize=8
+    )
     fig.tight_layout()
     fig.savefig(path, dpi=110, facecolor="#fcfcfb", bbox_inches="tight")
     plt.close(fig)

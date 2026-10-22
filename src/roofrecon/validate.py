@@ -13,8 +13,11 @@ def overhang(xy: np.ndarray, footprint: Polygon, q: float = 98.0) -> dict:
     points don't set it."""
     outside = ~shapely.contains_xy(footprint, xy[:, 0], xy[:, 1])
     d = shapely.distance(footprint, shapely.points(xy[outside]))
-    return {"overhang_m": float(np.percentile(d, q)) if len(d) else 0.0, "points_outside": int(outside.sum()),
-            "median_outside_m": float(np.median(d)) if len(d) else 0.0}
+    return {
+        "overhang_m": float(np.percentile(d, q)) if len(d) else 0.0,
+        "points_outside": int(outside.sum()),
+        "median_outside_m": float(np.median(d)) if len(d) else 0.0,
+    }
 
 
 def footprint_estimates(footprint: Polygon, facets: list[dict], overhang_m: float, overhang_area_m2: float) -> dict:
@@ -73,9 +76,13 @@ def plan_overlap(facets: list[dict]) -> dict:
                 pairs.append({"facets": [facets[i]["id"], facets[j]["id"]], "overlap_m2": round(a, 1)})
     # Area the report already declined to count twice (trimmed fallback overlaps), in plan.
     trimmed = sum((f.get("area_not_counted_m2") or 0.0) * np.cos(np.radians(f["pitch_deg"])) for f in facets)
-    return {"plan_sum_m2": round(total, 1), "plan_union_m2": round(union, 1),
-            "already_trimmed_m2": round(trimmed, 1), "double_counted_m2": round(total - union - trimmed, 1),
-            "overlapping_pairs": sorted(pairs, key=lambda p: -p["overlap_m2"])}
+    return {
+        "plan_sum_m2": round(total, 1),
+        "plan_union_m2": round(union, 1),
+        "already_trimmed_m2": round(trimmed, 1),
+        "double_counted_m2": round(total - union - trimmed, 1),
+        "overlapping_pairs": sorted(pairs, key=lambda p: -p["overlap_m2"]),
+    }
 
 
 def _match_edge(p0, p1, edges: list[dict], max_angle_deg: float = 20.0):
@@ -116,29 +123,50 @@ def compare_hand_measurements(rows: list[dict], report: dict) -> list[dict]:
     for r in rows:
         kind = r["kind"]
         rid = int(r["report_id"]) if r.get("report_id") not in (None, "") else None
-        res = {"house_id": r["house_id"], "kind": kind, "feature": r["feature"], "method": r.get("method"),
-               "repeat": r.get("repeat"), "report_id": rid}
+        res = {
+            "house_id": r["house_id"],
+            "kind": kind,
+            "feature": r["feature"],
+            "method": r.get("method"),
+            "repeat": r.get("repeat"),
+            "report_id": rid,
+        }
         if kind in ("edge", "slope"):
             p0 = np.array([float(r[k]) for k in ("x0", "y0", "z0")])
             p1 = np.array([float(r[k]) for k in ("x1", "y1", "z1")])
         if kind == "edge":
             hand = float(np.linalg.norm(p1 - p0))
             e = edges.get(rid) if rid is not None else _match_edge(p0, p1, report["edges"])[0]
-            res.update(hand=round(hand, 3), report=None if e is None else e["length_m"],
-                       report_id=None if e is None else e["id"], report_type=None if e is None else e["type"])
+            res.update(
+                hand=round(hand, 3),
+                report=None if e is None else e["length_m"],
+                report_id=None if e is None else e["id"],
+                report_type=None if e is None else e["type"],
+            )
         elif kind == "slope":
             dz = abs(p1[2] - p0[2])
             run = float(np.linalg.norm((p1 - p0)[:2]))
             hand = float(np.degrees(np.arctan2(dz, run)))
             f = facets.get(rid) if rid is not None else _match_facet(p0, p1, report["facets"])
-            res.update(hand=round(hand, 2), report=None if f is None else f["pitch_deg"],
-                       report_id=None if f is None else f["id"], report_type="pitch")
+            res.update(
+                hand=round(hand, 2),
+                report=None if f is None else f["pitch_deg"],
+                report_id=None if f is None else f["id"],
+                report_type="pitch",
+            )
         elif kind == "plan_length":
             hand = float(r["value"])
             e = edges.get(rid)
-            plan = None if e is None else float(np.linalg.norm((np.asarray(e["p1_local_m"]) - np.asarray(e["p0_local_m"]))[:2]))
-            res.update(hand=round(hand, 3), report=None if plan is None else round(plan, 3),
-                       report_type=None if e is None else e["type"] + " (plan)")
+            plan = (
+                None
+                if e is None
+                else float(np.linalg.norm((np.asarray(e["p1_local_m"]) - np.asarray(e["p0_local_m"]))[:2]))
+            )
+            res.update(
+                hand=round(hand, 3),
+                report=None if plan is None else round(plan, 3),
+                report_type=None if e is None else e["type"] + " (plan)",
+            )
         else:
             raise ValueError(f"unknown kind {kind!r}")
         res["error"] = None if res["report"] is None else round(res["report"] - res["hand"], 3)
@@ -154,6 +182,11 @@ def error_summary(results: list[dict]) -> dict:
         if len(e) == 0:
             continue
         q1, med, q3 = np.percentile(e, [25, 50, 75])
-        summary[kind] = {"n": int(len(e)), "median": round(float(med), 3), "iqr": [round(float(q1), 3), round(float(q3), 3)],
-                         "max_abs": round(float(np.abs(e).max()), 3), "mean_abs": round(float(np.abs(e).mean()), 3)}
+        summary[kind] = {
+            "n": int(len(e)),
+            "median": round(float(med), 3),
+            "iqr": [round(float(q1), 3), round(float(q3), 3)],
+            "max_abs": round(float(np.abs(e).max()), 3),
+            "mean_abs": round(float(np.abs(e).mean()), 3),
+        }
     return summary

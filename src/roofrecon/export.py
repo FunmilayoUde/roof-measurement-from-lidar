@@ -16,12 +16,21 @@ from shapely.geometry import Polygon
 # Validated categorical palette (reference, light mode), in fixed order: one colour per facet,
 # cycling only past eight facets. Edge colours follow stage 3's edge-type colours.
 FACET_COLORS = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
-EDGE_COLORS = {"ridge": "#2a78d6", "hip": "#eb6834", "valley": "#1baf7a", "eave": "#eda100", "rake": "#e87ba4",
-               "break": "#008300", "top": "#6250d6", "perimeter": "#e34948", "unclassified": "#52514e"}
+EDGE_COLORS = {
+    "ridge": "#2a78d6",
+    "hip": "#eb6834",
+    "valley": "#1baf7a",
+    "eave": "#eda100",
+    "rake": "#e87ba4",
+    "break": "#008300",
+    "top": "#6250d6",
+    "perimeter": "#e34948",
+    "unclassified": "#52514e",
+}
 
 
 def _rgb(hex_color: str) -> np.ndarray:
-    return np.array([int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5)])
+    return np.array([int(hex_color[i : i + 2], 16) / 255 for i in (1, 3, 5)])
 
 
 def _plane_frame(v: np.ndarray):
@@ -127,6 +136,8 @@ def write_ply(report: dict, mesh: dict, mesh_path: Path, edges_path: Path) -> No
         lines.append([len(pts), len(pts) + 1])
         pts += [e["p0_local_m"], e["p1_local_m"]]
         lcols.append(_rgb(EDGE_COLORS.get(e["type"], "#52514e")))
-    ls = o3d.geometry.LineSet(o3d.utility.Vector3dVector(np.array(pts, float)), o3d.utility.Vector2iVector(np.array(lines)))
+    ls = o3d.geometry.LineSet(
+        o3d.utility.Vector3dVector(np.array(pts, float)), o3d.utility.Vector2iVector(np.array(lines))
+    )
     ls.colors = o3d.utility.Vector3dVector(np.array(lcols))
     o3d.io.write_line_set(str(edges_path), ls)

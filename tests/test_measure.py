@@ -108,11 +108,36 @@ def test_hand_measurement_comparison_on_a_known_gable():
     _, rep = report_for(gable)
     zr = 5.0 + 4 * np.tan(np.radians(35))
     rows = [
-        {"house_id": "g", "kind": "edge", "feature": "ridge", "x0": 0, "y0": 4, "z0": zr, "x1": 10, "y1": 4, "z1": zr,
-         "value": "", "report_id": "", "method": "cloudcompare", "repeat": "1"},
-        {"house_id": "g", "kind": "slope", "feature": "south slope", "x0": 5, "y0": 3.5, "z0": 5 + 3.5 * np.tan(np.radians(35)),
-         "x1": 5, "y1": 0.5, "z1": 5 + 0.5 * np.tan(np.radians(35)), "value": "", "report_id": "", "method": "cloudcompare",
-         "repeat": "1"},
+        {
+            "house_id": "g",
+            "kind": "edge",
+            "feature": "ridge",
+            "x0": 0,
+            "y0": 4,
+            "z0": zr,
+            "x1": 10,
+            "y1": 4,
+            "z1": zr,
+            "value": "",
+            "report_id": "",
+            "method": "cloudcompare",
+            "repeat": "1",
+        },
+        {
+            "house_id": "g",
+            "kind": "slope",
+            "feature": "south slope",
+            "x0": 5,
+            "y0": 3.5,
+            "z0": 5 + 3.5 * np.tan(np.radians(35)),
+            "x1": 5,
+            "y1": 0.5,
+            "z1": 5 + 0.5 * np.tan(np.radians(35)),
+            "value": "",
+            "report_id": "",
+            "method": "cloudcompare",
+            "repeat": "1",
+        },
     ]
     res = compare_hand_measurements(rows, rep)
     assert res[0]["report_type"] == "ridge" and abs(res[0]["error"]) < 0.2

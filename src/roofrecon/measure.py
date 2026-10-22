@@ -81,7 +81,9 @@ def reconcile_edges(model: RoofModel) -> list[dict]:
     for P in model.polygons:
         for s in P.sides:
             if P.fallback:
-                edges.append({"type": "unclassified", "facets": [P.facet], "p0": s.p0, "p1": s.p1, "disagreement_m": None})
+                edges.append(
+                    {"type": "unclassified", "facets": [P.facet], "p0": s.p0, "p1": s.p1, "disagreement_m": None}
+                )
             elif s.neighbour is None:
                 kind = "unclassified" if s.kind == "other" else s.kind  # outer side neither level nor up-slope
                 edges.append({"type": kind, "facets": [P.facet], "p0": s.p0, "p1": s.p1, "disagreement_m": None})
@@ -138,34 +140,44 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
         az = azimuth_deg(P.plane.normal)
         area = P.area - trims.get(P.facet, 0.0)
         confidence, err_p90 = area_uncertainty(area, P.fallback)
-        facets.append({
-            "id": P.facet,
-            "points": int((model.seg.labels == P.facet).sum()),
-            "pitch_deg": round(pitch, 1),
-            "pitch_rise_per_12": round(rise_per_12(pitch), 1),
-            "azimuth_deg": None if az is None else round(az, 1),
-            "facing": compass(az),
-            "area_m2": round(area, 2),
-            "area_ft2": round(area * M2_TO_FT2, 1),
-            "area_not_counted_m2": round(trims[P.facet], 2) if P.facet in trims else None,
-            "confidence": confidence,
-            "area_error_p90_pct": round(100 * err_p90, 1),
-            "plan_area_m2": round(P.plan_area, 2),
-            "outline": "traced (fallback)" if P.fallback else "plane and line intersections",
-            "fallback_reason": P.fallback_reason,
-            "vertices_local_m": np.round(P.vertices, 3).tolist(),
-            "holes_local_m": [np.round(h, 3).tolist() for h in P.holes],
-        })
+        facets.append(
+            {
+                "id": P.facet,
+                "points": int((model.seg.labels == P.facet).sum()),
+                "pitch_deg": round(pitch, 1),
+                "pitch_rise_per_12": round(rise_per_12(pitch), 1),
+                "azimuth_deg": None if az is None else round(az, 1),
+                "facing": compass(az),
+                "area_m2": round(area, 2),
+                "area_ft2": round(area * M2_TO_FT2, 1),
+                "area_not_counted_m2": round(trims[P.facet], 2) if P.facet in trims else None,
+                "confidence": confidence,
+                "area_error_p90_pct": round(100 * err_p90, 1),
+                "plan_area_m2": round(P.plan_area, 2),
+                "outline": "traced (fallback)" if P.fallback else "plane and line intersections",
+                "fallback_reason": P.fallback_reason,
+                "vertices_local_m": np.round(P.vertices, 3).tolist(),
+                "holes_local_m": [np.round(h, 3).tolist() for h in P.holes],
+            }
+        )
 
     edges = []
     for i, e in enumerate(sorted(reconcile_edges(model), key=lambda e: (EDGE_TYPES.index(e["type"]), e["facets"]))):
         length = float(np.linalg.norm(e["p1"] - e["p0"]))
-        edges.append({
-            "id": i, "type": e["type"], "facets": [int(f) for f in e["facets"]],
-            "length_m": round(length, 2), "length_ft": round(length * M_TO_FT, 1),
-            "endpoint_disagreement_m": None if e["disagreement_m"] is None else round(float(e["disagreement_m"]), 2),
-            "p0_local_m": np.round(e["p0"], 3).tolist(), "p1_local_m": np.round(e["p1"], 3).tolist(),
-        })
+        edges.append(
+            {
+                "id": i,
+                "type": e["type"],
+                "facets": [int(f) for f in e["facets"]],
+                "length_m": round(length, 2),
+                "length_ft": round(length * M_TO_FT, 1),
+                "endpoint_disagreement_m": None
+                if e["disagreement_m"] is None
+                else round(float(e["disagreement_m"]), 2),
+                "p0_local_m": np.round(e["p0"], 3).tolist(),
+                "p1_local_m": np.round(e["p1"], 3).tolist(),
+            }
+        )
 
     area = sum(f["area_m2"] for f in facets)
     low_area = sum(f["area_m2"] for f in facets if f["confidence"] == "low" and f["area_m2"] > 0)
@@ -177,19 +189,27 @@ def measurement_report(model: RoofModel, meta: dict) -> dict:
     fallback = [f["id"] for f in facets if f["outline"] != "plane and line intersections"]
     notes = []
     if fallback:
-        notes.append(f"{len(fallback)} facet(s) use a traced outline, not line intersections: their area is "
-                     "approximate and their sides are unclassified.")
+        notes.append(
+            f"{len(fallback)} facet(s) use a traced outline, not line intersections: their area is "
+            "approximate and their sides are unclassified."
+        )
     if low_area > 0:
-        notes.append(f"{low_area:.1f} m² ({100 * low_area / area:.0f}% of the roof) is in small or traced facets, whose "
-                     f"area error was up to {100 * AREA_ERR_P90[0][1]:.0f}% (90th percentile) on synthetic roofs; "
-                     "real errors will be at least that.")
+        notes.append(
+            f"{low_area:.1f} m² ({100 * low_area / area:.0f}% of the roof) is in small or traced facets, whose "
+            f"area error was up to {100 * AREA_ERR_P90[0][1]:.0f}% (90th percentile) on synthetic roofs; "
+            "real errors will be at least that."
+        )
     if trims:
-        notes.append(f"{sum(trims.values()):.1f} m² of traced facet(s) {sorted(trims)} lies inside other facets at the "
-                     "same height and is not counted twice.")
+        notes.append(
+            f"{sum(trims.values()):.1f} m² of traced facet(s) {sorted(trims)} lies inside other facets at the "
+            "same height and is not counted twice."
+        )
     disagreements = [e["endpoint_disagreement_m"] for e in edges if e["endpoint_disagreement_m"] is not None]
     if disagreements and max(disagreements) > 0.25:
-        notes.append(f"Shared edges were reconciled from two facets that disagreed by up to {max(disagreements):.2f} m "
-                     "at an endpoint (above 0.5 m, the overlap of the two versions is kept).")
+        notes.append(
+            f"Shared edges were reconciled from two facets that disagreed by up to {max(disagreements):.2f} m "
+            "at an endpoint (above 0.5 m, the overlap of the two versions is kept)."
+        )
     return {
         "house_id": meta.get("house_id"),
         "source": meta,

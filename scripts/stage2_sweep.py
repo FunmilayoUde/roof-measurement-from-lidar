@@ -34,16 +34,21 @@ SWEEPS = {
 }
 # Picked from the joint check: centre of the region where every seed passes both references.
 CHOSEN = {"threshold": 0.12, "min_area": 1.0}
-LABELS = {"threshold": "distance threshold (m)", "min_area": "minimum plane area (m²)",
-          "normal_radius": "normal radius (m)", "angle": "angle tolerance (°)"}
+LABELS = {
+    "threshold": "distance threshold (m)",
+    "min_area": "minimum plane area (m²)",
+    "normal_radius": "normal radius (m)",
+    "angle": "angle tolerance (°)",
+}
 
 
 def run(xyz: np.ndarray, density: float, method: str, p: dict):
     min_points = max(3, int(round(p["min_area"] * density)))
     if method == "ransac":
         return segment_ransac(xyz, threshold=p["threshold"], min_points=min_points)
-    return segment_region_growing(xyz, normal_radius=p["normal_radius"], angle_deg=p["angle"],
-                                  threshold=p["threshold"], min_points=min_points)
+    return segment_region_growing(
+        xyz, normal_radius=p["normal_radius"], angle_deg=p["angle"], threshold=p["threshold"], min_points=min_points
+    )
 
 
 def reference_ok(house: str, s: dict) -> bool | None:
@@ -75,14 +80,24 @@ def main() -> None:
                     xyz, density = data[h]
                     t0 = time.time()
                     s = summarize(xyz, run(xyz, density, method, params), density)
-                    rows.append({
-                        "setting": setting, "value": v, "method": method, "house": h,
-                        "planes": s["planes"], "coverage": s["coverage"], "median_rms_m": s["median_rms_m"],
-                        "roof_true_area_m2": s["roof_true_area_m2"], "reference_ok": reference_ok(h, s),
-                        "seconds": round(time.time() - t0, 2),
-                    })
-                    print(f"{setting}={v:<5} {method:6} {h}: planes {s['planes']:>2} cov {s['coverage']:.3f} "
-                          f"rms {s['median_rms_m']} area {s['roof_true_area_m2']} ref {rows[-1]['reference_ok']}")
+                    rows.append(
+                        {
+                            "setting": setting,
+                            "value": v,
+                            "method": method,
+                            "house": h,
+                            "planes": s["planes"],
+                            "coverage": s["coverage"],
+                            "median_rms_m": s["median_rms_m"],
+                            "roof_true_area_m2": s["roof_true_area_m2"],
+                            "reference_ok": reference_ok(h, s),
+                            "seconds": round(time.time() - t0, 2),
+                        }
+                    )
+                    print(
+                        f"{setting}={v:<5} {method:6} {h}: planes {s['planes']:>2} cov {s['coverage']:.3f} "
+                        f"rms {s['median_rms_m']} area {s['roof_true_area_m2']} ref {rows[-1]['reference_ok']}"
+                    )
 
     out = ROOT / "sweeps"
     out.mkdir(parents=True, exist_ok=True)
@@ -127,11 +142,16 @@ def joint_ransac_check(data: dict, out: Path, seeds: range = range(10)) -> None:
     print(f"\nRANSAC seed stability at threshold {t}, min_area {m}:")
     for h in HOUSES:
         xyz, d = data[h]
-        res = [summarize(xyz, segment_ransac(xyz, threshold=t, min_points=max(3, int(round(m * d))), seed=s), d) for s in seeds]
+        res = [
+            summarize(xyz, segment_ransac(xyz, threshold=t, min_points=max(3, int(round(m * d))), seed=s), d)
+            for s in seeds
+        ]
         counts = {v: [r["planes"] for r in res].count(v) for v in sorted({r["planes"] for r in res})}
         cov = [r["coverage"] for r in res]
         area = [r["roof_true_area_m2"] for r in res]
-        print(f"  {h}: planes {counts}, coverage {min(cov):.3f}-{max(cov):.3f}, area {min(area):.1f}-{max(area):.1f} m²")
+        print(
+            f"  {h}: planes {counts}, coverage {min(cov):.3f}-{max(cov):.3f}, area {min(area):.1f}-{max(area):.1f} m²"
+        )
 
 
 # Validated categorical slots 1-4 (reference palette, light mode), fixed per house.
@@ -152,8 +172,16 @@ def label_line_ends(ax, rows: list[dict], method: str, key: str) -> None:
     for i in range(1, len(ends)):
         ends[i][0] = max(ends[i][0], ends[i - 1][0] + gap)
     for y, h, x in ends:
-        ax.annotate(h, (x, y), xytext=(6, 0), textcoords="offset points", color=INK_2, fontsize=8, va="center",
-                    annotation_clip=False)
+        ax.annotate(
+            h,
+            (x, y),
+            xytext=(6, 0),
+            textcoords="offset points",
+            color=INK_2,
+            fontsize=8,
+            va="center",
+            annotation_clip=False,
+        )
 
 
 def plot_sweep(rows: list[dict], setting: str, path: Path) -> None:
@@ -163,8 +191,12 @@ def plot_sweep(rows: list[dict], setting: str, path: Path) -> None:
     import matplotlib.pyplot as plt
     from matplotlib.lines import Line2D
 
-    metrics = [("planes", "planes found"), ("coverage", "coverage (fraction assigned)"),
-               ("median_rms_m", "median plane rms (m)"), ("roof_true_area_m2", "roof true area (m²)")]
+    metrics = [
+        ("planes", "planes found"),
+        ("coverage", "coverage (fraction assigned)"),
+        ("median_rms_m", "median plane rms (m)"),
+        ("roof_true_area_m2", "roof true area (m²)"),
+    ]
     methods = sorted({r["method"] for r in rows}, key=["ransac", "rg"].index)
     fig, axes = plt.subplots(1, 4, figsize=(17, 4.2), facecolor=SURFACE)
     for ax, (key, title) in zip(axes, metrics):
@@ -176,7 +208,11 @@ def plot_sweep(rows: list[dict], setting: str, path: Path) -> None:
                 ax.plot(xs, ys, METHOD_STYLE[m], color=HOUSE_COLORS[h], lw=2, marker="o", ms=4)
                 # Reference failures: hollow ring on the point so they read without colour.
                 if key == "planes" and h in REFERENCE:
-                    bad = [(r["value"], r[key]) for r in rows if r["house"] == h and r["method"] == m and r["reference_ok"] is False]
+                    bad = [
+                        (r["value"], r[key])
+                        for r in rows
+                        if r["house"] == h and r["method"] == m and r["reference_ok"] is False
+                    ]
                     if bad:
                         ax.scatter(*zip(*bad), s=90, facecolors="none", edgecolors=INK, linewidths=1.2, zorder=5)
         if key == "planes":
@@ -191,11 +227,21 @@ def plot_sweep(rows: list[dict], setting: str, path: Path) -> None:
             ax.spines[side].set_visible(False)
         for side in ("left", "bottom"):
             ax.spines[side].set_color(GRID)
-    handles = [Line2D([], [], color=HOUSE_COLORS[h], lw=2, label=h + (" (reference)" if h in REFERENCE else "")) for h in HOUSES]
-    handles += [Line2D([], [], color=INK_2, lw=2, ls=METHOD_STYLE[m], label={"ransac": "RANSAC", "rg": "region growing"}[m]) for m in methods]
-    handles += [Line2D([], [], ls="none", marker="o", ms=9, mfc="none", mec=INK, label="reference check failed"),
-                Line2D([], [], color=INK_2, lw=1, ls=":", label="current default")]
-    fig.suptitle(f"Stage 2 sweep: {LABELS[setting]} (other settings at defaults)", color=INK, fontsize=12, x=0.01, ha="left")
+    handles = [
+        Line2D([], [], color=HOUSE_COLORS[h], lw=2, label=h + (" (reference)" if h in REFERENCE else ""))
+        for h in HOUSES
+    ]
+    handles += [
+        Line2D([], [], color=INK_2, lw=2, ls=METHOD_STYLE[m], label={"ransac": "RANSAC", "rg": "region growing"}[m])
+        for m in methods
+    ]
+    handles += [
+        Line2D([], [], ls="none", marker="o", ms=9, mfc="none", mec=INK, label="reference check failed"),
+        Line2D([], [], color=INK_2, lw=1, ls=":", label="current default"),
+    ]
+    fig.suptitle(
+        f"Stage 2 sweep: {LABELS[setting]} (other settings at defaults)", color=INK, fontsize=12, x=0.01, ha="left"
+    )
     fig.tight_layout(rect=(0, 0.08, 1, 1))
     fig.legend(handles=handles, loc="lower center", ncol=4, frameon=False, fontsize=8.5, labelcolor=INK)
     path.parent.mkdir(parents=True, exist_ok=True)

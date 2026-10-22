@@ -50,28 +50,64 @@ def house(h: str) -> dict:
     model = build_roof(xyz, density, seed=rep["settings"]["seed"])
     mesh = roof_mesh(rep)
     return {
-        "id": h, **ABOUT[h],
-        "points": len(xyz), "density_pts_per_m2": round(density, 1),
+        "id": h,
+        **ABOUT[h],
+        "points": len(xyz),
+        "density_pts_per_m2": round(density, 1),
         "nn_spacing_m": round(st["density_inside_walls"]["median_nn_spacing_m"], 3),
-        "footprint_m2": round(st["footprint_area_m2"], 1), "footprint": r(st["footprint_local_xy"], 2),
+        "footprint_m2": round(st["footprint_area_m2"], 1),
+        "footprint": r(st["footprint_local_xy"], 2),
         "buffer_sweep": [[s["buffer_m"], s["points"]] for s in st["buffer_sweep"]],
-        "xyz": r(xyz, 2), "labels": model.seg.labels.tolist(),
-        "facets": [{k: f[k] for k in ("id", "points", "pitch_deg", "pitch_rise_per_12", "facing", "area_m2", "plan_area_m2",
-                                      "confidence", "area_error_p90_pct", "outline", "area_not_counted_m2")}
-                   | {"vertices": r(f["vertices_local_m"]), "holes": [r(x) for x in f.get("holes_local_m", [])]}
-                   for f in rep["facets"]],
-        "edges": [{"id": e["id"], "type": e["type"], "length_m": e["length_m"], "p0": r(e["p0_local_m"]),
-                   "p1": r(e["p1_local_m"])} for e in rep["edges"]],
-        "mesh": {"vertices": r(mesh["vertices"]), "faces": mesh["faces"].tolist(),
-                 "facet_of_face": mesh["facet_of_face"].tolist()},
-        "totals": rep["totals"], "quality": rep["quality"], "settings": rep["settings"],
+        "xyz": r(xyz, 2),
+        "labels": model.seg.labels.tolist(),
+        "facets": [
+            {
+                k: f[k]
+                for k in (
+                    "id",
+                    "points",
+                    "pitch_deg",
+                    "pitch_rise_per_12",
+                    "facing",
+                    "area_m2",
+                    "plan_area_m2",
+                    "confidence",
+                    "area_error_p90_pct",
+                    "outline",
+                    "area_not_counted_m2",
+                )
+            }
+            | {"vertices": r(f["vertices_local_m"]), "holes": [r(x) for x in f.get("holes_local_m", [])]}
+            for f in rep["facets"]
+        ],
+        "edges": [
+            {
+                "id": e["id"],
+                "type": e["type"],
+                "length_m": e["length_m"],
+                "p0": r(e["p0_local_m"]),
+                "p1": r(e["p1_local_m"]),
+            }
+            for e in rep["edges"]
+        ],
+        "mesh": {
+            "vertices": r(mesh["vertices"]),
+            "faces": mesh["faces"].tolist(),
+            "facet_of_face": mesh["facet_of_face"].tolist(),
+        },
+        "totals": rep["totals"],
+        "quality": rep["quality"],
+        "settings": rep["settings"],
     }
 
 
 def excluded(h: str) -> dict:
     st = json.loads((ROOT / h / "stats.json").read_text())
-    return {"id": h, "footprint_m2": round(st["footprint_area_m2"], 1),
-            "buffer_sweep": [[s["buffer_m"], s["points"]] for s in st["buffer_sweep"]]}
+    return {
+        "id": h,
+        "footprint_m2": round(st["footprint_area_m2"], 1),
+        "buffer_sweep": [[s["buffer_m"], s["points"]] for s in st["buffer_sweep"]],
+    }
 
 
 def synthetic_area_errors(seeds: int = 20) -> list[dict]:
@@ -94,9 +130,15 @@ def synthetic_area_errors(seeds: int = 20) -> list[dict]:
                 # A facet RANSAC missed: its points sit in another facet's segment. Not a match.
                 if f is None or np.bincount(roof.labels[labels == s]).argmax() != t:
                     continue
-                out.append({"roof": make.__name__, "seed": seed, "true_m2": round(true_area, 2),
-                            "error_pct": round(100 * (f["area_m2"] / true_area - 1), 2),
-                            "fallback": f["outline"] != "plane and line intersections"})
+                out.append(
+                    {
+                        "roof": make.__name__,
+                        "seed": seed,
+                        "true_m2": round(true_area, 2),
+                        "error_pct": round(100 * (f["area_m2"] / true_area - 1), 2),
+                        "fallback": f["outline"] != "plane and line intersections",
+                    }
+                )
     return out
 
 
@@ -109,8 +151,10 @@ def main() -> None:
         "excluded": [excluded("delft_04")],
         "validation": json.loads((ROOT / "validation.json").read_text()),
         "hand_measurements": len(list(csv.DictReader(hand.open()))) if hand.exists() else 0,
-        "sweep": [{k: (v if k in ("setting", "method", "house", "reference_ok") else float(v)) for k, v in row.items()}
-                  for row in sweep],
+        "sweep": [
+            {k: (v if k in ("setting", "method", "house", "reference_ok") else float(v)) for k, v in row.items()}
+            for row in sweep
+        ],
         "joint": [{k: float(v) for k, v in row.items()} for row in joint],
         "synthetic_area": synthetic_area_errors(),
     }
@@ -120,8 +164,10 @@ def main() -> None:
     errs = data["synthetic_area"]
     for lo, hi in ((0, 10), (10, 25), (25, np.inf)):
         e = np.abs([x["error_pct"] for x in errs if lo <= x["true_m2"] < hi])
-        print(f"  synthetic facets {lo}-{hi} m²: n {len(e)}, |error| median {np.median(e):.1f}%, "
-              f"p90 {np.percentile(e, 90):.1f}%, max {e.max():.1f}%")
+        print(
+            f"  synthetic facets {lo}-{hi} m²: n {len(e)}, |error| median {np.median(e):.1f}%, "
+            f"p90 {np.percentile(e, 90):.1f}%, max {e.max():.1f}%"
+        )
 
 
 if __name__ == "__main__":

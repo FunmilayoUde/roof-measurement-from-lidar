@@ -82,13 +82,15 @@ def test_nn_spacing_on_a_grid():
 
 def test_non_building_split_wall_band_from_interior():
     fp = box(0, 0, 10, 8)
-    xy = np.array([
-        [0.2, 4.0],   # facade hit just inside the wall line
-        [9.9, 1.0],   # ditto
-        [5.0, 4.0],   # chimney, mid-roof
-        [5.0, 4.0],   # building point, ignored
-        [12.0, 4.0],  # outside, ignored
-    ])
+    xy = np.array(
+        [
+            [0.2, 4.0],  # facade hit just inside the wall line
+            [9.9, 1.0],  # ditto
+            [5.0, 4.0],  # chimney, mid-roof
+            [5.0, 4.0],  # building point, ignored
+            [12.0, 4.0],  # outside, ignored
+        ]
+    )
     cls = np.array([1, 1, 1, 6, 1], dtype=np.uint8)
     r = non_building_inside_walls(xy, cls, fp, wall_band_m=0.5)
     assert (r["total"], r["interior"]) == (3, 1)

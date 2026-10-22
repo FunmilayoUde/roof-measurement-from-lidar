@@ -35,8 +35,11 @@ def preview(report: dict, mesh: dict, xyz: np.ndarray, path: Path) -> None:
         ax = fig.add_subplot(1, 2, k + 1, projection="3d")
         ax.set_facecolor("#fcfcfb")
         tris = mesh["vertices"][mesh["faces"]]
-        ax.add_collection3d(Poly3DCollection(tris, facecolors=[colour_of[f] for f in mesh["facet_of_face"]],
-                                             edgecolors="none", alpha=0.85))
+        ax.add_collection3d(
+            Poly3DCollection(
+                tris, facecolors=[colour_of[f] for f in mesh["facet_of_face"]], edgecolors="none", alpha=0.85
+            )
+        )
         used = set()
         for e in report["edges"]:
             a, b = np.asarray(e["p0_local_m"]), np.asarray(e["p1_local_m"])
@@ -56,8 +59,12 @@ def preview(report: dict, mesh: dict, xyz: np.ndarray, path: Path) -> None:
     handles = [Line2D([], [], color=EDGE_COLORS[t], lw=2.2, label=t) for t in EDGE_COLORS if t in used]
     fig.legend(handles=handles, loc="lower center", ncol=len(handles), frameon=False, fontsize=9)
     t = report["totals"]
-    fig.suptitle(f"{report['house_id']}: {t['facets']} facets, {t['roof_area_m2']} m², laser points in grey",
-                 x=0.02, ha="left", color="#0b0b0b")
+    fig.suptitle(
+        f"{report['house_id']}: {t['facets']} facets, {t['roof_area_m2']} m², laser points in grey",
+        x=0.02,
+        ha="left",
+        color="#0b0b0b",
+    )
     fig.tight_layout(rect=(0, 0.05, 1, 0.95))
     fig.savefig(path, dpi=110, facecolor="#fcfcfb")
     plt.close(fig)
@@ -80,8 +87,10 @@ def main() -> None:
     write_obj(report, mesh, out / "model.obj")
     write_ply(report, mesh, out / "model.ply", out / "edges.ply")
     preview(report, mesh, xyz, out / "model_preview.png")
-    print(f"{args.house_id}: {len(mesh['faces'])} triangles over {len(set(mesh['facet_of_face'].tolist()))} facets, "
-          f"mesh area {mesh_area(mesh):.1f} m² (report {report['totals']['roof_area_m2']} m²) -> {out}")
+    print(
+        f"{args.house_id}: {len(mesh['faces'])} triangles over {len(set(mesh['facet_of_face'].tolist()))} facets, "
+        f"mesh area {mesh_area(mesh):.1f} m² (report {report['totals']['roof_area_m2']} m²) -> {out}"
+    )
 
 
 if __name__ == "__main__":

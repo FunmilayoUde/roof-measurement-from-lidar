@@ -300,7 +300,9 @@ def drop_small_planes(xyz: np.ndarray, seg: Segmentation, min_points: int) -> Se
     return Segmentation(labels, [seg.planes[k] for k in keep])
 
 
-def absorb_unassigned(xyz: np.ndarray, seg: Segmentation, threshold: float, radius: float = 0.3, rounds: int = 10) -> Segmentation:
+def absorb_unassigned(
+    xyz: np.ndarray, seg: Segmentation, threshold: float, radius: float = 0.3, rounds: int = 10
+) -> Segmentation:
     """Give unassigned points to an adjacent plane they lie on.
 
     Region growing leaves the band along ridges unassigned, because normals there blend
@@ -319,7 +321,7 @@ def absorb_unassigned(xyz: np.ndarray, seg: Segmentation, threshold: float, radi
             cands = {labels[j] for j in nbrs if labels[j] >= 0}
             if not cands:
                 continue
-            dists = {k: abs(seg.planes[k].distance(xyz[i:i + 1])[0]) for k in cands}
+            dists = {k: abs(seg.planes[k].distance(xyz[i : i + 1])[0]) for k in cands}
             best = min(dists, key=dists.get)
             if dists[best] < threshold:
                 labels[i] = best

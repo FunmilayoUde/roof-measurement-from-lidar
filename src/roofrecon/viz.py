@@ -7,7 +7,9 @@ from pathlib import Path
 import numpy as np
 
 
-def save_snapshot(xyz: np.ndarray, out_path: str | Path, footprint_xy: np.ndarray | None = None, title: str = "") -> None:
+def save_snapshot(
+    xyz: np.ndarray, out_path: str | Path, footprint_xy: np.ndarray | None = None, title: str = ""
+) -> None:
     """Plan view coloured by height plus two elevations. Enough to see ridges, pitch and outliers."""
     import matplotlib
 
@@ -60,8 +62,16 @@ def save_segment_snapshot(xyz: np.ndarray, labels: np.ndarray, out_path: str | P
         ax.set_aspect("equal")
     for k in np.unique(labels[labels >= 0]):
         cx, cy = xyz[labels == k, :2].mean(axis=0)
-        axes[0].text(cx, cy, str(k), fontsize=11, weight="bold", ha="center", va="center",
-                     bbox={"facecolor": "white", "alpha": 0.7, "pad": 1, "edgecolor": "none"})
+        axes[0].text(
+            cx,
+            cy,
+            str(k),
+            fontsize=11,
+            weight="bold",
+            ha="center",
+            va="center",
+            bbox={"facecolor": "white", "alpha": 0.7, "pad": 1, "edgecolor": "none"},
+        )
     axes[0].set_title("plan (colour = plane, grey = unassigned)")
     axes[1].set_title("elevation along x")
     axes[2].set_title("elevation along y")

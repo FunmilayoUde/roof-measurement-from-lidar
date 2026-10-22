@@ -53,7 +53,9 @@ def three_plane_point(a: Plane, b: Plane, c: Plane, min_det: float = 0.05) -> np
     return np.linalg.solve(A, np.array([a.normal @ a.centroid, b.normal @ b.centroid, c.normal @ c.centroid]))
 
 
-def adjacency(xyz: np.ndarray, labels: np.ndarray, n_planes: int, radius: float = 0.3) -> dict[tuple[int, int], np.ndarray]:
+def adjacency(
+    xyz: np.ndarray, labels: np.ndarray, n_planes: int, radius: float = 0.3
+) -> dict[tuple[int, int], np.ndarray]:
     """Pairs of facets that touch, with their contact points.
 
     Contact points are the points of either facet that have a point of the other within
@@ -93,7 +95,9 @@ def slope_away(plane: Plane, point: np.ndarray, direction: np.ndarray, side_poin
     return float(u[2])
 
 
-def beside_edge(pts: np.ndarray, point, direction, t0: float, t1: float, near: float = 0.2, far: float = 1.5) -> np.ndarray:
+def beside_edge(
+    pts: np.ndarray, point, direction, t0: float, t1: float, near: float = 0.2, far: float = 1.5
+) -> np.ndarray:
     """A facet's points alongside the edge segment and between `near` and `far` from the line.
     Falls back to the nearest ones if the strip is empty (a very narrow facet)."""
     rel = pts - point

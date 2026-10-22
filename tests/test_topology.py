@@ -1,7 +1,10 @@
+from collections import defaultdict
+
 import numpy as np
 import pytest
 
-from roofrecon.planes import Plane, fit_plane
+from roofrecon.planes import Plane, alpha_shape, fit_plane, to_plane_coords
+from roofrecon.polygons import roof_polygons
 from roofrecon.segment import Segmentation, segment_ransac
 from roofrecon.topology import internal_edges, plane_intersection, three_plane_point
 from synthetic_roofs import cross_gable, gable, hip
@@ -134,11 +137,6 @@ def test_valley_short_contact_and_mixed_labels(seed):
 
 
 # --- Facet polygons -----------------------------------------------------------------------
-
-from collections import defaultdict
-
-from roofrecon.planes import alpha_shape, to_plane_coords
-from roofrecon.polygons import roof_polygons
 
 OUTER_TRUTH = {  # total outer-edge lengths by kind, from the synthetic geometry
     "gable": {"eave": 20.0, "rake": 4 * 4 / np.cos(np.radians(35))},

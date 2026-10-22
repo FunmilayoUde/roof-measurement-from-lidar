@@ -66,7 +66,9 @@ def hip(length=12.0, width=8.0, pitch_deg=30.0, eave_z=5.0, density=33.0, noise=
         _edge("hip", (0, 3), (length, 0, eave_z), b),
         _edge("hip", (1, 3), (length, width, eave_z), b),
     ]
-    return SyntheticRoof(np.column_stack([x, y, z]), labels, pitch_deg, [trapezoid, trapezoid, triangle, triangle], edges)
+    return SyntheticRoof(
+        np.column_stack([x, y, z]), labels, pitch_deg, [trapezoid, trapezoid, triangle, triangle], edges
+    )
 
 
 def cross_gable(pitch_deg=35.0, eave_z=5.0, density=33.0, noise=0.03, seed=0) -> SyntheticRoof:
@@ -130,7 +132,7 @@ def dormer(pitch_deg=40.0, eave_z=5.0, density=33.0, noise=0.03, seed=0) -> Synt
     z = eave_z + np.maximum(z_main, z_dorm) + rng.normal(0, noise, n)
     d_facet = 1.2 * 1.5 + 1.5**2 / 2  # x 4..5.5, y from 0.8 up to the valley y = 2 + (x - 4)
     plan = [54.0 - 2 * d_facet, 54.0, d_facet, d_facet]
-    e, zd, zdr, zr = eave_z, eave_z + z_d_eave, eave_z + z_d_eave + 1.5 * t, eave_z + 4.5 * t
+    zd, zdr, zr = eave_z + z_d_eave, eave_z + z_d_eave + 1.5 * t, eave_z + 4.5 * t
     edges = [
         _edge("ridge", (0, 1), (0, 4.5, zr), (12, 4.5, zr)),
         _edge("ridge", (2, 3), (5.5, 0.8, zdr), (5.5, 3.5, zdr)),
